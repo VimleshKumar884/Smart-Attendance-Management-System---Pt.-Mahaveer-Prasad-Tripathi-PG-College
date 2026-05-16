@@ -104,3 +104,53 @@ exports.getMe = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get security question
+// @route   POST /api/auth/get-security-question
+// @access  Public
+exports.getSecurityQuestion = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Please provide an email' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.status(200).json({
+      success: true,
+      question: user.securityQuestion || 'What is your favorite color?'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Reset password via security question
+// @route   POST /api/auth/reset-password
+// @access  Public
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, answer, newPassword } = req.body;
+    if (!email || !answer || !newPassword) {
+      return res.status(400).json({ message: 'Please provide email, answer, and new password' });
+    }
+
+    const user = await User.findOne({ email }).select('+password +securityAnswer');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Simple case-insensitive comparison
+    if (user.securityAnswer.toLowerCase().trim() !== answer.toLowerCase().trim()) {
+      return res.status(400).json({ message: 'Incorrect security answer' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

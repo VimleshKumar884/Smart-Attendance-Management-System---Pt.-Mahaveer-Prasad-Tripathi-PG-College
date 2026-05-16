@@ -51,8 +51,18 @@ export const AuthProvider = ({ children }) => {
     delete axios.defaults.headers.common['Authorization'];
   };
 
+  const getSecurityQuestion = async (email) => {
+    const res = await axios.post(`${API_URL}/auth/get-security-question`, { email });
+    return res.data;
+  };
+
+  const resetPassword = async (email, answer, newPassword) => {
+    const res = await axios.post(`${API_URL}/auth/reset-password`, { email, answer, newPassword });
+    return res.data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, getSecurityQuestion, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

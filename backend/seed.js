@@ -19,7 +19,9 @@ const seedData = async () => {
       name: 'College Administrator',
       email: 'admin@college.edu',
       password: 'password123',
-      role: 'admin'
+      role: 'admin',
+      securityQuestion: 'What is your favorite color?',
+      securityAnswer: 'blue'
     });
 
     // Create Teachers
@@ -29,7 +31,9 @@ const seedData = async () => {
       password: 'password123',
       role: 'teacher',
       department: 'Computer Science',
-      subject: 'Data Structures'
+      subject: 'Data Structures',
+      securityQuestion: 'What is your favorite color?',
+      securityAnswer: 'blue'
     });
 
     const teacher2 = await User.create({
@@ -38,7 +42,9 @@ const seedData = async () => {
       password: 'password123',
       role: 'teacher',
       department: 'Mathematics',
-      subject: 'Advanced Calculus'
+      subject: 'Advanced Calculus',
+      securityQuestion: 'What is your favorite color?',
+      securityAnswer: 'blue'
     });
 
     // Create Students
@@ -50,7 +56,9 @@ const seedData = async () => {
       rollNumber: 'CS2026001',
       department: 'Computer Science',
       semester: 4,
-      section: 'A'
+      section: 'A',
+      securityQuestion: 'What is your favorite color?',
+      securityAnswer: 'blue'
     });
 
     const student2 = await User.create({
@@ -61,7 +69,9 @@ const seedData = async () => {
       rollNumber: 'CS2026002',
       department: 'Computer Science',
       semester: 4,
-      section: 'A'
+      section: 'A',
+      securityQuestion: 'What is your favorite color?',
+      securityAnswer: 'blue'
     });
 
     // Create Subjects

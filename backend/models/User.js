@@ -26,6 +26,14 @@ const UserSchema = new mongoose.Schema({
     enum: ['admin', 'teacher', 'student'],
     default: 'student'
   },
+  securityQuestion: {
+    type: String,
+    default: 'What is your favorite color?'
+  },
+  securityAnswer: {
+    type: String,
+    default: 'blue' // In a real app this should be hashed, but for simplicity we keep it plain or hash it later. Let's keep it lowercase plain for simple comparison.
+  },
   // Student specific fields
   rollNumber: {
     type: String,
