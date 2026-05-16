@@ -17,10 +17,6 @@ const SubjectSchema = new mongoose.Schema({
   semester: {
     type: Number,
     required: [true, 'Please add a semester']
-  },
-  teacherId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
   }
 }, { timestamps: true });
 

@@ -10,14 +10,16 @@ import {
   Calendar as CalendarIcon,
   CheckSquare,
   QrCode as QrIcon,
-  Users as UsersIcon
+  Users as UsersIcon,
+  Hash
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AttendanceQR from '../components/AttendanceQR';
 
 const MarkAttendance = () => {
-  const [subjects, setSubjects] = useState([]);
-  const [selectedSubject, setSelectedSubject] = useState('');
+  const [assignments, setAssignments] = useState([]);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
+  const [lectureNo, setLectureNo] = useState(1);
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({}); // { studentId: status }
   const [loading, setLoading] = useState(false);
@@ -26,24 +28,34 @@ const MarkAttendance = () => {
   const [mode, setMode] = useState('manual'); // 'manual' or 'qr'
 
   useEffect(() => {
-    const fetchSubjects = async () => {
+    const fetchAssignments = async () => {
       try {
-        const res = await axios.get('/subjects');
-        setSubjects(res.data.data);
+        const res = await axios.get('assignments');
+        setAssignments(res.data.data);
       } catch (err) {
-        console.error('Error fetching subjects');
+        console.error('Error fetching assignments');
       }
     };
-    fetchSubjects();
+    fetchAssignments();
   }, []);
 
-  const handleSubjectChange = async (subjectId) => {
-    setSelectedSubject(subjectId);
+  const handleAssignmentChange = async (assignmentId) => {
+    setSelectedAssignmentId(assignmentId);
+    if (!assignmentId) {
+      setStudents([]);
+      return;
+    }
+    
     setFetchingStudents(true);
     try {
-      // In a real app, you'd fetch students for that specific subject/semester
-      const res = await axios.get('http://localhost:5000/api/users');
-      const studentList = res.data.data.filter(u => u.role === 'student');
+      const assignment = assignments.find(a => a._id === assignmentId);
+      const res = await axios.get('users');
+      // Filter students matching the section and semester of the assignment
+      const studentList = res.data.data.filter(u => 
+        u.role === 'student' && 
+        u.section === assignment.section && 
+        u.semester === assignment.semester
+      );
       setStudents(studentList);
       
       // Initialize all as Present by default
@@ -62,22 +74,28 @@ const MarkAttendance = () => {
   };
 
   const handleSubmit = async () => {
-    if (!selectedSubject) return alert('Please select a subject');
+    if (!selectedAssignmentId) return alert('Please select an assigned class');
+    if (!lectureNo) return alert('Please enter lecture number');
     
     setLoading(true);
     try {
+      const assignment = assignments.find(a => a._id === selectedAssignmentId);
       const records = Object.entries(attendance).map(([studentId, status]) => ({
         studentId,
         status
       }));
       
       await axios.post('attendance', {
-        subjectId: selectedSubject,
+        subjectId: assignment.subjectId._id,
+        section: assignment.section,
+        lecture_no: lectureNo,
         records,
         date
       });
       
       alert('Attendance marked successfully!');
+      setSelectedAssignmentId('');
+      setStudents([]);
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to mark attendance');
     } finally {
@@ -91,9 +109,9 @@ const MarkAttendance = () => {
         <div>
           <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
             <CheckSquare className="text-primary" size={32} />
-            Mark Attendance
+            Start Attendance
           </h1>
-          <p className="text-slate-500 font-medium">Record daily presence for your classes.</p>
+          <p className="text-slate-500 font-medium">Record daily presence for your assigned classes.</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -109,51 +127,71 @@ const MarkAttendance = () => {
         </div>
       </div>
 
-      {/* Select Subject */}
+      {/* Select Assignment */}
       <div className="glass p-8 rounded-[2rem] space-y-6">
-        <div className="grid md:grid-cols-2 gap-8 items-end">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">Select Subject & Class</label>
+        <div className="grid md:grid-cols-3 gap-6 items-end">
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">Assigned Classes</label>
             <select 
-              value={selectedSubject}
-              onChange={(e) => handleSubjectChange(e.target.value)}
+              value={selectedAssignmentId}
+              onChange={(e) => handleAssignmentChange(e.target.value)}
               className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-slate-700 transition-all cursor-pointer"
             >
-              <option value="">-- Choose a Subject --</option>
-              {subjects.map(s => (
-                <option key={s._id} value={s._id}>{s.subjectName} ({s.subjectCode})</option>
+              <option value="">-- Select Today's Class --</option>
+              {assignments.map(a => (
+                <option key={a._id} value={a._id}>
+                  {a.subjectId?.subjectName} - Section {a.section} (Sem {a.semester})
+                </option>
               ))}
             </select>
           </div>
           
-          <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
-            <button 
-              onClick={() => setMode('manual')}
-              className={`flex-grow flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${mode === 'manual' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <UsersIcon size={18} />
-              Manual List
-            </button>
-            <button 
-              onClick={() => setMode('qr')}
-              className={`flex-grow flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${mode === 'qr' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <QrIcon size={18} />
-              QR Mode
-            </button>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">Lecture No.</label>
+            <div className="relative">
+              <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input 
+                type="number"
+                min="1"
+                value={lectureNo}
+                onChange={(e) => setLectureNo(e.target.value)}
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-slate-700 transition-all"
+              />
+            </div>
           </div>
+        </div>
+        
+        <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner max-w-sm mt-4">
+          <button 
+            onClick={() => setMode('manual')}
+            className={`flex-grow flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${mode === 'manual' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <UsersIcon size={18} />
+            Manual List
+          </button>
+          <button 
+            onClick={() => setMode('qr')}
+            className={`flex-grow flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${mode === 'qr' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <QrIcon size={18} />
+            QR Mode
+          </button>
         </div>
       </div>
 
       {/* Content based on mode */}
-      {selectedSubject && (
+      {selectedAssignmentId && (
         mode === 'manual' ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between px-4">
               <h3 className="text-xl font-bold text-slate-800">Student List ({students.length})</h3>
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-400">
-                <Search size={16} />
-                Quick Search
+              <div className="flex items-center gap-4 text-sm font-bold bg-slate-50 px-4 py-2 rounded-xl border border-dashed border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div> Present
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div> Absent
+                </div>
               </div>
             </div>
 
@@ -161,8 +199,12 @@ const MarkAttendance = () => {
               {fetchingStudents ? (
                 <div className="col-span-full py-20 flex flex-col items-center gap-3">
                   <Loader2 className="animate-spin text-primary" size={32} />
-                  <p className="font-bold text-slate-400">Fetching students...</p>
+                  <p className="font-bold text-slate-400">Fetching assigned students...</p>
                 </div>
+              ) : students.length === 0 ? (
+                 <div className="col-span-full py-10 text-center">
+                   <p className="text-slate-400 font-bold italic">No students found in this section/semester.</p>
+                 </div>
               ) : students.map((student) => (
                 <motion.div 
                   layout
@@ -213,13 +255,13 @@ const MarkAttendance = () => {
                 className="bg-primary text-white px-12 py-5 rounded-2xl font-bold flex items-center gap-3 shadow-2xl shadow-primary/40 hover:bg-primary-dark transition-all active:scale-95 disabled:opacity-70"
               >
                 {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />}
-                Submit Attendance Records
+                Submit Attendance
               </button>
             </div>
           </div>
         ) : (
           <div className="max-w-md mx-auto py-8">
-            <AttendanceQR subjectId={selectedSubject} />
+            <AttendanceQR subjectId={assignments.find(a => a._id === selectedAssignmentId)?.subjectId?._id} />
           </div>
         )
       )}

@@ -16,9 +16,17 @@ const AttendanceSchema = new mongoose.Schema({
     ref: 'Subject',
     required: true
   },
+  section: {
+    type: String,
+    required: true
+  },
   date: {
     type: Date,
     default: Date.now,
+    required: true
+  },
+  lecture_no: {
+    type: Number,
     required: true
   },
   status: {
@@ -26,10 +34,14 @@ const AttendanceSchema = new mongoose.Schema({
     enum: ['Present', 'Absent', 'Late'],
     required: true
   },
-  remarks: String
+  remarks: String,
+  markedAt: {
+    type: Date,
+    default: Date.now
+  }
 }, { timestamps: true });
 
-// Prevent duplicate attendance for same student, subject, and date
-AttendanceSchema.index({ studentId: 1, subjectId: 1, date: 1 }, { unique: true });
+// Prevent duplicate attendance for same student, subject, date, and lecture
+AttendanceSchema.index({ studentId: 1, subjectId: 1, date: 1, lecture_no: 1 }, { unique: true });
 
 module.exports = mongoose.model('Attendance', AttendanceSchema);

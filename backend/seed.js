@@ -77,20 +77,36 @@ const seedData = async () => {
     });
 
     // Create Subjects
-    await Subject.create({
+    const subject1 = await Subject.create({
       subjectName: 'Data Structures',
       subjectCode: 'CS401',
       department: 'Computer Science',
       semester: 4,
-      teacherId: teacher1._id
     });
 
-    await Subject.create({
+    const subject2 = await Subject.create({
       subjectName: 'Advanced Calculus',
       subjectCode: 'MTH401',
       department: 'Mathematics',
       semester: 4,
-      teacherId: teacher2._id
+    });
+
+    const Assignment = require('./models/Assignment');
+    await Assignment.deleteMany();
+    
+    // Assign Subjects to Teachers
+    await Assignment.create({
+      facultyId: teacher1._id,
+      subjectId: subject1._id,
+      semester: 4,
+      section: 'A'
+    });
+
+    await Assignment.create({
+      facultyId: teacher2._id,
+      subjectId: subject2._id,
+      semester: 4,
+      section: 'A'
     });
 
     console.log('Sample data seeded successfully!');
