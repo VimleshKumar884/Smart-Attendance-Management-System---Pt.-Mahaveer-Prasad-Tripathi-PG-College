@@ -22,17 +22,20 @@ const ManageStudents = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: 'password123',
+    password: '',
     rollNumber: '',
+    dob: '',
     department: '',
     semester: 1,
     section: 'A',
-    role: 'student'
+    role: 'student',
+    securityQuestion: 'What is your favorite color?',
+    securityAnswer: ''
   });
 
   const fetchStudents = async () => {
     try {
-      const res = await axios.get('/users');
+      const res = await axios.get('users');
       setStudents(res.data.data.filter(u => u.role === 'student'));
     } catch (err) {
       console.error('Error fetching students');
@@ -52,8 +55,9 @@ const ManageStudents = () => {
       setIsModalOpen(false);
       fetchStudents();
       setFormData({
-        name: '', email: '', password: 'password123', rollNumber: '',
-        department: '', semester: 1, section: 'A', role: 'student'
+        name: '', email: '', password: '', rollNumber: '', dob: '',
+        department: '', semester: 1, section: 'A', role: 'student',
+        securityQuestion: 'What is your favorite color?', securityAnswer: ''
       });
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add student');
@@ -230,10 +234,23 @@ const ManageStudents = () => {
                     placeholder="john@college.edu"
                   />
                   <InputField 
+                    label="Access Password" 
+                    type="password"
+                    value={formData.password} 
+                    onChange={v => setFormData({...formData, password: v})} 
+                    placeholder="••••••••"
+                  />
+                  <InputField 
                     label="Roll Number" 
                     value={formData.rollNumber} 
                     onChange={v => setFormData({...formData, rollNumber: v})} 
                     placeholder="CS2026001"
+                  />
+                  <InputField 
+                    label="Date of Birth" 
+                    type="date"
+                    value={formData.dob} 
+                    onChange={v => setFormData({...formData, dob: v})} 
                   />
                   <InputField 
                     label="Department" 
@@ -252,6 +269,21 @@ const ManageStudents = () => {
                     value={formData.section} 
                     onChange={v => setFormData({...formData, section: v})} 
                   />
+
+                  <div className="md:col-span-2 grid md:grid-cols-2 gap-6 bg-primary/5 p-4 rounded-xl border border-primary/10">
+                    <InputField 
+                      label="Security Question" 
+                      value={formData.securityQuestion} 
+                      onChange={v => setFormData({...formData, securityQuestion: v})} 
+                      placeholder="e.g. What is your favorite color?"
+                    />
+                    <InputField 
+                      label="Security Answer" 
+                      value={formData.securityAnswer} 
+                      onChange={v => setFormData({...formData, securityAnswer: v})} 
+                      placeholder="e.g. blue"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-4 pt-4">

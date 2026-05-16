@@ -22,15 +22,17 @@ const ManageTeachers = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: 'password123',
+    password: '',
     subject: '',
     department: '',
-    role: 'teacher'
+    role: 'teacher',
+    securityQuestion: 'What is your favorite color?',
+    securityAnswer: ''
   });
 
   const fetchTeachers = async () => {
     try {
-      const res = await axios.get('/users');
+      const res = await axios.get('users');
       setTeachers(res.data.data.filter(u => u.role === 'teacher'));
     } catch (err) {
       console.error('Error fetching teachers');
@@ -50,8 +52,8 @@ const ManageTeachers = () => {
       setIsModalOpen(false);
       fetchTeachers();
       setFormData({
-        name: '', email: '', password: 'password123', subject: '',
-        department: '', role: 'teacher'
+        name: '', email: '', password: '', subject: '',
+        department: '', role: 'teacher', securityQuestion: 'What is your favorite color?', securityAnswer: ''
       });
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add teacher');
@@ -196,6 +198,14 @@ const ManageTeachers = () => {
                     theme="secondary"
                   />
                   <InputField 
+                    label="Access Password" 
+                    type="password"
+                    value={formData.password} 
+                    onChange={v => setFormData({...formData, password: v})} 
+                    placeholder="••••••••"
+                    theme="secondary"
+                  />
+                  <InputField 
                     label="Assigned Subject" 
                     value={formData.subject} 
                     onChange={v => setFormData({...formData, subject: v})} 
@@ -209,6 +219,23 @@ const ManageTeachers = () => {
                     placeholder="Computer Science"
                     theme="secondary"
                   />
+                  
+                  <div className="md:col-span-2 grid md:grid-cols-2 gap-6 bg-secondary/5 p-4 rounded-xl border border-secondary/10">
+                    <InputField 
+                      label="Security Question" 
+                      value={formData.securityQuestion} 
+                      onChange={v => setFormData({...formData, securityQuestion: v})} 
+                      placeholder="e.g. What is your favorite color?"
+                      theme="secondary"
+                    />
+                    <InputField 
+                      label="Security Answer" 
+                      value={formData.securityAnswer} 
+                      onChange={v => setFormData({...formData, securityAnswer: v})} 
+                      placeholder="e.g. blue"
+                      theme="secondary"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-4 pt-4">
