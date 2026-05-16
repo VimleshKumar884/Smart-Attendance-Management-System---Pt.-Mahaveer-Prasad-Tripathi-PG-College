@@ -333,38 +333,4 @@ const InputField = ({ label, value, onChange, type = 'text', placeholder }) => (
   </div>
 );
 
-export default ManageStudents;ext-slate-500 hover:bg-slate-50 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    className="px-10 py-4 bg-primary text-white rounded-xl font-bold shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
-                  >
-                    Register Student
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const InputField = ({ label, value, onChange, type = 'text', placeholder }) => (
-  <div className="space-y-1">
-    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">{label}</label>
-    <input 
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      required
-      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold text-slate-700"
-    />
-  </div>
-);
-
 export default ManageStudents;
