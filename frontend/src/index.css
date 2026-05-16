@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0f4c81; /* Classic University Blue */
+  --color-primary-dark: #0a355a;
+  --color-secondary: #1e293b; /* Professional Slate */
+  --color-secondary-dark: #0f172a;
+  --color-accent: #f59e0b; /* Golden Yellow for highlights */
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card-professional {
+    @apply bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-2.5 rounded-lg font-bold hover:bg-primary-dark transition-all active:scale-95 shadow-sm;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-700;
+  }
+}
+
+/* Custom Scrollbar for a more polished feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+}
