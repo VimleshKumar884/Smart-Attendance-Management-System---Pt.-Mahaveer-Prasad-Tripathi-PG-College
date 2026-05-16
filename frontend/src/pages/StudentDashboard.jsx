@@ -130,6 +130,27 @@ const StudentDashboard = () => {
         )}
       </AnimatePresence>
 
+      {/* Low Attendance Alert */}
+      {summary.total > 0 && summary.percentage < 75 && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-2xl flex items-start gap-4 shadow-sm"
+        >
+          <div className="p-2 bg-red-100 text-red-600 rounded-lg mt-1">
+            <AlertCircle size={24} />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-red-800 font-black uppercase text-xs tracking-widest">Low Attendance Warning</h3>
+            <p className="text-red-700/80 text-sm font-bold">
+              Your cumulative attendance is currently <span className="underline">{summary.percentage}%</span>. 
+              This is below the mandatory <span className="font-black">75%</span> threshold required for examination eligibility. 
+              Please contact your department head immediately.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Profile summary */}
       <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row items-center gap-6">
         <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center text-primary font-black text-3xl border-2 border-slate-200">
