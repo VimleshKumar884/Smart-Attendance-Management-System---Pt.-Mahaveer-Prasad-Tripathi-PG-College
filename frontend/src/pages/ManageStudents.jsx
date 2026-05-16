@@ -18,11 +18,13 @@ const ManageStudents = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentStudentId, setCurrentStudentId] = useState(null);
   
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
+    password: 'password123', // Default backend requirement
     rollNumber: '',
     dob: '',
     department: '',
@@ -30,7 +32,7 @@ const ManageStudents = () => {
     section: 'A',
     role: 'student',
     securityQuestion: 'What is your favorite color?',
-    securityAnswer: ''
+    securityAnswer: 'blue'
   });
 
   const fetchStudents = async () => {
@@ -48,19 +50,48 @@ const ManageStudents = () => {
     fetchStudents();
   }, []);
 
+  const openAddModal = () => {
+    setIsEditMode(false);
+    setCurrentStudentId(null);
+    setFormData({
+      name: '', email: '', password: 'password123', rollNumber: '', dob: '',
+      department: '', semester: 1, section: 'A', role: 'student',
+      securityQuestion: 'What is your favorite color?', securityAnswer: 'blue'
+    });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (student) => {
+    setIsEditMode(true);
+    setCurrentStudentId(student._id);
+    setFormData({
+      name: student.name,
+      email: student.email,
+      password: 'password123', // Doesn't matter for edit unless changing
+      rollNumber: student.rollNumber || '',
+      dob: student.dob || '',
+      department: student.department || '',
+      semester: student.semester || 1,
+      section: student.section || 'A',
+      role: 'student',
+      securityQuestion: student.securityQuestion || 'What is your favorite color?',
+      securityAnswer: student.securityAnswer || 'blue'
+    });
+    setIsModalOpen(true);
+  };
+
   const handleAddStudent = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('users', formData);
+      if (isEditMode) {
+        await axios.put(`users/${currentStudentId}`, formData);
+      } else {
+        await axios.post('users', formData);
+      }
       setIsModalOpen(false);
       fetchStudents();
-      setFormData({
-        name: '', email: '', password: '', rollNumber: '', dob: '',
-        department: '', semester: 1, section: 'A', role: 'student',
-        securityQuestion: 'What is your favorite color?', securityAnswer: ''
-      });
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add student');
+      alert(err.response?.data?.message || 'Failed to save student');
     }
   };
 
@@ -234,13 +265,6 @@ const ManageStudents = () => {
                     placeholder="john@college.edu"
                   />
                   <InputField 
-                    label="Access Password" 
-                    type="password"
-                    value={formData.password} 
-                    onChange={v => setFormData({...formData, password: v})} 
-                    placeholder="••••••••"
-                  />
-                  <InputField 
                     label="Roll Number" 
                     value={formData.rollNumber} 
                     onChange={v => setFormData({...formData, rollNumber: v})} 
@@ -269,21 +293,6 @@ const ManageStudents = () => {
                     value={formData.section} 
                     onChange={v => setFormData({...formData, section: v})} 
                   />
-
-                  <div className="md:col-span-2 grid md:grid-cols-2 gap-6 bg-primary/5 p-4 rounded-xl border border-primary/10">
-                    <InputField 
-                      label="Security Question" 
-                      value={formData.securityQuestion} 
-                      onChange={v => setFormData({...formData, securityQuestion: v})} 
-                      placeholder="e.g. What is your favorite color?"
-                    />
-                    <InputField 
-                      label="Security Answer" 
-                      value={formData.securityAnswer} 
-                      onChange={v => setFormData({...formData, securityAnswer: v})} 
-                      placeholder="e.g. blue"
-                    />
-                  </div>
                 </div>
 
                 <div className="flex justify-end gap-4 pt-4">
@@ -291,6 +300,40 @@ const ManageStudents = () => {
                     type="button"
                     onClick={() => setIsModalOpen(false)}
                     className="px-8 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-10 py-4 bg-primary text-white rounded-xl font-bold shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
+                  >
+                    Register Student
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const InputField = ({ label, value, onChange, type = 'text', placeholder }) => (
+  <div className="space-y-1">
+    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">{label}</label>
+    <input 
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      required
+      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold text-slate-700"
+    />
+  </div>
+);
+
+export default ManageStudents;ext-slate-500 hover:bg-slate-50 transition-all"
                   >
                     Cancel
                   </button>

@@ -204,6 +204,7 @@ const ManageTeachers = () => {
                     onChange={v => setFormData({...formData, password: v})} 
                     placeholder="••••••••"
                     theme="secondary"
+                    required={!isEditMode}
                   />
                   <InputField 
                     label="Assigned Subject" 
@@ -234,6 +235,7 @@ const ManageTeachers = () => {
                       onChange={v => setFormData({...formData, securityAnswer: v})} 
                       placeholder="e.g. blue"
                       theme="secondary"
+                      required={!isEditMode}
                     />
                   </div>
                 </div>
@@ -249,6 +251,36 @@ const ManageTeachers = () => {
                   <button 
                     type="submit"
                     className="px-10 py-4 bg-secondary text-white rounded-xl font-bold shadow-xl shadow-secondary/20 hover:bg-secondary-dark transition-all active:scale-95"
+                  >
+                    Register Teacher
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const InputField = ({ label, value, onChange, type = 'text', placeholder, theme = 'primary' }) => (
+  <div className="space-y-1">
+    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">{label}</label>
+    <input 
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      required
+      className={`w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 transition-all font-semibold text-slate-700 ${
+        theme === 'primary' ? 'focus:ring-primary/20 focus:border-primary' : 'focus:ring-secondary/20 focus:border-secondary'
+      }`}
+    />
+  </div>
+);
+
+export default ManageTeachers;hers;ansition-all active:scale-95"
                   >
                     Register Teacher
                   </button>
