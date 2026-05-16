@@ -57,6 +57,7 @@ const seedData = async () => {
       department: 'Computer Science',
       semester: 4,
       section: 'A',
+      dob: '2004-05-16',
       securityQuestion: 'What is your favorite color?',
       securityAnswer: 'blue'
     });
@@ -70,6 +71,7 @@ const seedData = async () => {
       department: 'Computer Science',
       semester: 4,
       section: 'A',
+      dob: '2004-05-16',
       securityQuestion: 'What is your favorite color?',
       securityAnswer: 'blue'
     });

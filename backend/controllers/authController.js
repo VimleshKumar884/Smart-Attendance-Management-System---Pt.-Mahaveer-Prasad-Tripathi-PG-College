@@ -54,25 +54,34 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { loginType, email, password, rollNumber, dob } = req.body;
 
-    // Validate email & password
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide an email and password' });
-    }
+    let user;
 
-    // Check for user
-    const user = await User.findOne({ email }).select('+password');
-
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Check if password matches
-    const isMatch = await user.matchPassword(password);
-
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    if (loginType === 'student') {
+      if (!rollNumber || !dob) {
+        return res.status(400).json({ message: 'Please provide roll number and Date of Birth' });
+      }
+      user = await User.findOne({ rollNumber, dob });
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid Roll Number or DOB' });
+      }
+    } else {
+      // Default to faculty/admin login
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Please provide an email and password' });
+      }
+      user = await User.findOne({ email }).select('+password');
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      const isMatch = await user.matchPassword(password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      // Optional: enforce role check if needed, e.g., if (user.role === 'student') block? 
+      // The user wants dual login. Faculty/Admin use email/pass. Students use roll/dob.
+      // So if a student tries to login via email/password, it technically could work but let's allow it or block it? Let's just allow it or block it later if strictly needed.
     }
 
     res.status(200).json({

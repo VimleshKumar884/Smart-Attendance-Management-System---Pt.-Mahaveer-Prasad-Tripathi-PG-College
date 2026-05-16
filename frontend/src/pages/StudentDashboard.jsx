@@ -7,7 +7,9 @@ import {
   Download,
   AlertCircle,
   TrendingUp,
-  BookOpen
+  BookOpen,
+  QrCode,
+  GraduationCap
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -40,7 +42,7 @@ const StudentDashboard = () => {
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
-        const res = await axios.get('/attendance');
+        const res = await axios.get('attendance');
         const data = res.data.data;
         setAttendanceData(data);
         
@@ -61,9 +63,9 @@ const StudentDashboard = () => {
   }, []);
 
   const pieData = [
-    { name: 'Present', value: summary.present, color: '#10b981' },
-    { name: 'Absent', value: summary.absent, color: '#ef4444' },
-    { name: 'Late', value: summary.late, color: '#f97316' },
+    { name: 'Present', value: summary.present, color: '#0f4c81' }, // primary
+    { name: 'Absent', value: summary.absent, color: '#ef4444' }, // red
+    { name: 'Late', value: summary.late, color: '#f59e0b' }, // accent
   ];
 
   const subjectData = [
@@ -74,23 +76,24 @@ const StudentDashboard = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-8 space-y-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-10">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-8 gap-6">
         <div>
-          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">Student Dashboard</h1>
-          <p className="text-slate-500 font-medium">Welcome back, <span className="text-primary">{user?.name}</span>. Track your progress here.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Academic Overview</h1>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-2">Student Portal • Session 2026-27</p>
         </div>
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setIsScannerOpen(true)}
-            className="bg-primary text-white px-8 py-3 rounded-2xl font-black shadow-xl shadow-primary/25 flex items-center justify-center gap-2 hover:bg-primary-dark transition-all active:scale-95"
+            className="bg-primary text-white px-6 py-3 rounded-lg font-bold shadow-sm flex items-center justify-center gap-2 hover:bg-primary-dark transition-all active:scale-95"
           >
-            <QrCode size={20} />
-            Scan QR Code
+            <QrCode size={18} />
+            Scan Class QR
           </button>
-          <button className="bg-white text-slate-700 px-6 py-3 rounded-2xl font-bold border border-slate-200 shadow-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
-            <Download size={20} />
-            Download Full Report
+          <button className="bg-white text-slate-700 px-6 py-3 rounded-lg font-bold border border-slate-200 shadow-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
+            <Download size={18} />
+            Export Transcript
           </button>
         </div>
       </div>
@@ -104,7 +107,7 @@ const StudentDashboard = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsScannerOpen(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -114,7 +117,7 @@ const StudentDashboard = () => {
             >
               <button 
                 onClick={() => setIsScannerOpen(false)}
-                className="absolute -top-16 right-0 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
               >
                 <X size={24} />
               </button>
@@ -127,42 +130,95 @@ const StudentDashboard = () => {
         )}
       </AnimatePresence>
 
+      {/* Profile summary */}
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row items-center gap-6">
+        <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center text-primary font-black text-3xl border-2 border-slate-200">
+           {user?.name?.charAt(0)}
+        </div>
+        <div className="flex-grow text-center md:text-left">
+           <h2 className="text-2xl font-black text-slate-900">{user?.name}</h2>
+           <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Roll No: {user?.rollNumber || 'N/A'}</p>
+        </div>
+        <div className="flex items-center gap-6 bg-slate-50 px-6 py-4 rounded-xl border border-slate-100">
+           <div className="text-center">
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Department</p>
+             <p className="text-sm font-bold text-slate-800">{user?.department || 'B.Sc CS'}</p>
+           </div>
+           <div className="w-px h-8 bg-slate-200"></div>
+           <div className="text-center">
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Semester</p>
+             <p className="text-sm font-bold text-slate-800">Sem {user?.semester || '4'}</p>
+           </div>
+        </div>
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <SummaryCard 
-          icon={<TrendingUp className="text-primary" />}
-          label="Overall Attendance"
+          icon={<TrendingUp />}
+          label="Cumulative Attendance"
           value={`${summary.percentage}%`}
-          color="bg-blue-50"
+          color="text-primary"
+          bg="bg-blue-50"
         />
         <SummaryCard 
-          icon={<BookOpen className="text-emerald-500" />}
-          label="Total Classes"
+          icon={<BookOpen />}
+          label="Total Lectures"
           value={summary.total}
-          color="bg-emerald-50"
+          color="text-emerald-600"
+          bg="bg-emerald-50"
         />
         <SummaryCard 
-          icon={<AlertCircle className="text-red-500" />}
-          label="Absences"
+          icon={<AlertCircle />}
+          label="Total Absences"
           value={summary.absent}
-          color="bg-red-50"
+          color="text-red-600"
+          bg="bg-red-50"
         />
         <SummaryCard 
-          icon={<Calendar className="text-orange-500" />}
+          icon={<Calendar />}
           label="Late Marks"
           value={summary.late}
-          color="bg-orange-50"
+          color="text-accent"
+          bg="bg-yellow-50"
         />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
+        {/* Subject Breakdown */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden lg:col-span-2">
+          <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+            <h3 className="text-lg font-black text-slate-900">Module Performance</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Attendance by Subject</p>
+          </div>
+          <div className="p-8 h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={subjectData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 700}} dy={10} />
+                <YAxis hide domain={[0, 100]} />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc' }}
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                />
+                <Bar 
+                  dataKey="percentage" 
+                  fill="#0f4c81" 
+                  radius={[4, 4, 0, 0]} 
+                  barSize={30}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         {/* Progress Chart */}
-        <div className="glass p-8 rounded-[2.5rem] lg:col-span-1 space-y-6">
-          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <PieChartIcon size={20} className="text-primary" />
-            Attendance Ratio
-          </h3>
-          <div className="h-64">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden lg:col-span-1">
+          <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+            <h3 className="text-lg font-black text-slate-900">Attendance Ratio</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Current Semester</p>
+          </div>
+          <div className="p-8 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -171,97 +227,70 @@ const StudentDashboard = () => {
                   cy="50%"
                   innerRadius={60}
                   outerRadius={80}
-                  paddingAngle={8}
+                  paddingAngle={5}
                   dataKey="value"
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-6">
+          <div className="flex justify-center gap-6 pb-6">
             {pieData.map(item => (
               <div key={item.name} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.name}</span>
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: item.color }}></div>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">{item.name}</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Subject Breakdown */}
-        <div className="glass p-8 rounded-[2.5rem] lg:col-span-2 space-y-8">
-          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <BarChart3 size={20} className="text-primary" />
-            Subject-wise Breakdown
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={subjectData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 600}} dy={10} />
-                <YAxis hide domain={[0, 100]} />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                />
-                <Bar 
-                  dataKey="percentage" 
-                  fill="#3b82f6" 
-                  radius={[10, 10, 10, 10]} 
-                  barSize={40}
-                />
-              </BarChart>
-            </ResponsiveContainer>
           </div>
         </div>
       </div>
 
       {/* History Table */}
-      <div className="glass rounded-[2.5rem] overflow-hidden shadow-sm">
-        <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-slate-800">Recent Attendance History</h3>
-          <span className="text-sm font-bold text-primary cursor-pointer hover:underline">View All Records</span>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <h3 className="text-lg font-black text-slate-900">Recent Logs</h3>
+          <span className="text-xs font-black text-primary cursor-pointer hover:underline uppercase tracking-widest">View Archives</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                <th className="px-8 py-5">Date</th>
-                <th className="px-8 py-5">Subject</th>
-                <th className="px-8 py-5">Status</th>
-                <th className="px-8 py-5">Teacher</th>
+              <tr className="bg-white text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200">
+                <th className="px-8 py-4">Date</th>
+                <th className="px-8 py-4">Course Module</th>
+                <th className="px-8 py-4">Status</th>
+                <th className="px-8 py-4">Instructor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {attendanceData.slice(0, 5).map((record) => (
                 <tr key={record._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-8 py-5 font-bold text-slate-700">
+                  <td className="px-8 py-4 font-bold text-slate-700 text-sm">
                     {new Date(record.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
-                  <td className="px-8 py-5 text-sm font-semibold text-slate-600">
-                    {record.subjectId?.subjectName || 'General'}
+                  <td className="px-8 py-4 text-sm font-bold text-slate-800">
+                    {record.subjectId?.subjectName || 'General Module'}
                   </td>
-                  <td className="px-8 py-5">
-                    <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-tighter ${
-                      record.status === 'Present' ? 'bg-emerald-100 text-emerald-600' :
-                      record.status === 'Absent' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
+                  <td className="px-8 py-4">
+                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border ${
+                      record.status === 'Present' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                      record.status === 'Absent' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-yellow-50 text-yellow-600 border-yellow-200'
                     }`}>
                       {record.status}
                     </span>
                   </td>
-                  <td className="px-8 py-5 text-sm font-medium text-slate-500">
-                    {record.teacherId?.name || 'Faculty'}
+                  <td className="px-8 py-4 text-sm font-bold text-slate-500">
+                    {record.teacherId?.name || 'Faculty Staff'}
                   </td>
                 </tr>
               ))}
               {attendanceData.length === 0 && (
                 <tr>
                   <td colSpan="4" className="px-8 py-10 text-center text-slate-400 font-bold italic">
-                    No attendance records found yet.
+                    No academic records found for current term.
                   </td>
                 </tr>
               )}
@@ -273,14 +302,17 @@ const StudentDashboard = () => {
   );
 };
 
-const SummaryCard = ({ icon, label, value, color }) => (
-  <div className="glass p-8 rounded-[2rem] space-y-4 hover:shadow-lg transition-all border-none group">
-    <div className={`${color} w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6`}>
-      {React.cloneElement(icon, { size: 28 })}
+const SummaryCard = ({ icon, label, value, color, bg }) => (
+  <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm group hover:border-primary/20 transition-all duration-300">
+    <div className="flex justify-between items-start">
+      <div className={`${bg} ${color} p-3 rounded-xl transition-transform group-hover:scale-110 duration-500`}>
+        {React.cloneElement(icon, { size: 20 })}
+      </div>
+      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Term</span>
     </div>
-    <div>
-      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-      <h3 className="text-3xl font-black text-slate-800 mt-1">{value}</h3>
+    <div className="mt-6 space-y-1">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{label}</p>
+      <h3 className="text-3xl font-black text-slate-900 leading-tight">{value}</h3>
     </div>
   </div>
 );

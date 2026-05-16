@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Loader2, GraduationCap, ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Loader2, GraduationCap, ShieldCheck, KeyRound, ArrowLeft, UserSquare2, Hash, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Login = () => {
+  const [loginType, setLoginType] = useState('student'); // 'student' or 'faculty'
+  
+  // Student Login State
+  const [rollNumber, setRollNumber] = useState('');
+  const [dob, setDob] = useState('');
+  
+  // Faculty Login State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -27,8 +35,15 @@ const Login = () => {
     setLoading(true);
     setError('');
     
+    let loginData = {};
+    if (loginType === 'student') {
+      loginData = { loginType: 'student', rollNumber, dob };
+    } else {
+      loginData = { loginType: 'faculty', email, password };
+    }
+
     try {
-      const data = await login(email, password);
+      const data = await login(loginData);
       if (data.user.role === 'admin') navigate('/admin/dashboard');
       else if (data.user.role === 'teacher') navigate('/teacher/dashboard');
       else navigate('/student/dashboard');
@@ -119,7 +134,7 @@ const Login = () => {
         </div>
 
         {/* Right Side: Dynamic Form Area */}
-        <div className="p-12 lg:p-16 flex flex-col justify-center relative">
+        <div className="p-10 lg:p-16 flex flex-col justify-center relative">
           
           <AnimatePresence mode="wait">
             {!isForgotPassword ? (
@@ -130,9 +145,25 @@ const Login = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="w-full"
               >
-                <div className="mb-10">
+                <div className="mb-8">
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight">Portal Authentication</h3>
-                  <p className="text-slate-400 text-sm font-bold mt-2">Enter your institutional credentials to proceed.</p>
+                  <p className="text-slate-400 text-sm font-bold mt-2">Select your portal and enter credentials.</p>
+                </div>
+
+                {/* Login Tabs */}
+                <div className="flex p-1 bg-slate-100 rounded-xl mb-8">
+                  <button
+                    onClick={() => { setLoginType('student'); setError(''); }}
+                    className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${loginType === 'student' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Student Portal
+                  </button>
+                  <button
+                    onClick={() => { setLoginType('faculty'); setError(''); }}
+                    className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${loginType === 'faculty' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Faculty / Admin
+                  </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -157,40 +188,75 @@ const Login = () => {
                     </motion.div>
                   )}
                   
-                  <div className="space-y-5">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Official Email</label>
-                      <div className="relative group">
-                        <Mail className="absolute left-4 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={18} />
-                        <input 
-                          type="email" 
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-bold text-slate-700 placeholder:text-slate-300"
-                          placeholder="name@college.edu"
-                          required
-                        />
+                  {loginType === 'faculty' ? (
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Official Email</label>
+                        <div className="relative group">
+                          <Mail className="absolute left-4 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={18} />
+                          <input 
+                            type="email" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                            placeholder="faculty@college.edu"
+                            required
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Access Password</label>
-                        <button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMsg(''); }} className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">Forgot?</button>
-                      </div>
-                      <div className="relative group">
-                        <Lock className="absolute left-4 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={18} />
-                        <input 
-                          type="password" 
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-bold text-slate-700 placeholder:text-slate-300"
-                          placeholder="••••••••"
-                          required
-                        />
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Access Password</label>
+                          <button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMsg(''); }} className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">Forgot?</button>
+                        </div>
+                        <div className="relative group">
+                          <Lock className="absolute left-4 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={18} />
+                          <input 
+                            type="password" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                            placeholder="••••••••"
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Roll Number</label>
+                        <div className="relative group">
+                          <Hash className="absolute left-4 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={18} />
+                          <input 
+                            type="text" 
+                            value={rollNumber}
+                            onChange={(e) => setRollNumber(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-bold text-slate-700 placeholder:text-slate-300 uppercase"
+                            placeholder="CS2026001"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Date of Birth</label>
+                        </div>
+                        <div className="relative group">
+                          <Calendar className="absolute left-4 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={18} />
+                          <input 
+                            type="date" 
+                            value={dob}
+                            onChange={(e) => setDob(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-bold text-slate-700 text-slate-500"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <button 
                     type="submit" 
@@ -201,7 +267,7 @@ const Login = () => {
                   </button>
                 </form>
 
-                <div className="mt-10 pt-10 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-8 pt-8 border-t border-slate-100 flex items-center justify-between">
                   <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Help & Enrollment</p>
                   <button className="text-primary text-[10px] font-black uppercase tracking-widest hover:underline">Contact Registrar</button>
                 </div>

@@ -57,20 +57,26 @@ const AppContent = () => {
           {/* Teacher Routes */}
           <Route path="/teacher/*" element={
             <ProtectedRoute roles={['teacher']}>
-              <Routes>
-                <Route path="dashboard" element={<MarkAttendance />} />
-                <Route path="*" element={<Navigate to="dashboard" />} />
-              </Routes>
+              <AdminLayout>
+                <Routes>
+                  <Route path="dashboard" element={<MarkAttendance />} />
+                  <Route path="students" element={<ManageStudents />} />
+                  <Route path="*" element={<Navigate to="dashboard" />} />
+                </Routes>
+              </AdminLayout>
             </ProtectedRoute>
           } />
 
           {/* Student Routes */}
           <Route path="/student/*" element={
             <ProtectedRoute roles={['student']}>
-              <Routes>
-                <Route path="dashboard" element={<StudentDashboard />} />
-                <Route path="*" element={<Navigate to="dashboard" />} />
-              </Routes>
+              <AdminLayout>
+                <Routes>
+                  <Route path="dashboard" element={<StudentDashboard />} />
+                  <Route path="history" element={<div className="glass p-8 rounded-3xl"><h2 className="text-2xl font-bold">Attendance History</h2></div>} />
+                  <Route path="*" element={<Navigate to="dashboard" />} />
+                </Routes>
+              </AdminLayout>
             </ProtectedRoute>
           } />
         </Routes>

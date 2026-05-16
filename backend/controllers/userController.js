@@ -2,10 +2,14 @@ const User = require('../models/User');
 
 // @desc    Get all users
 // @route   GET /api/users
-// @access  Private/Admin
+// @access  Private/Admin/Teacher
 exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find();
+    let query = {};
+    if (req.user.role === 'teacher') {
+      query = { role: 'student' };
+    }
+    const users = await User.find(query);
     res.status(200).json({ success: true, count: users.length, data: users });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -14,12 +18,15 @@ exports.getUsers = async (req, res) => {
 
 // @desc    Get single user
 // @route   GET /api/users/:id
-// @access  Private/Admin
+// @access  Private/Admin/Teacher
 exports.getUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+    if (req.user.role === 'teacher' && user.role !== 'student') {
+       return res.status(403).json({ message: 'Not authorized' });
     }
     res.status(200).json({ success: true, data: user });
   } catch (error) {
@@ -29,9 +36,12 @@ exports.getUser = async (req, res) => {
 
 // @desc    Create user
 // @route   POST /api/users
-// @access  Private/Admin
+// @access  Private/Admin/Teacher
 exports.createUser = async (req, res) => {
   try {
+    if (req.user.role === 'teacher') {
+      req.body.role = 'student'; // Teachers can only create students
+    }
     const user = await User.create(req.body);
     res.status(201).json({ success: true, data: user });
   } catch (error) {
@@ -41,16 +51,25 @@ exports.createUser = async (req, res) => {
 
 // @desc    Update user
 // @route   PUT /api/users/:id
-// @access  Private/Admin
+// @access  Private/Admin/Teacher
 exports.updateUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
+    let user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    if (req.user.role === 'teacher' && user.role !== 'student') {
+       return res.status(403).json({ message: 'Not authorized' });
+    }
+    if (req.user.role === 'teacher' && req.body.role && req.body.role !== 'student') {
+       req.body.role = 'student';
+    }
+    
+    user = await User.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+    
     res.status(200).json({ success: true, data: user });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -59,13 +78,17 @@ exports.updateUser = async (req, res) => {
 
 // @desc    Delete user
 // @route   DELETE /api/users/:id
-// @access  Private/Admin
+// @access  Private/Admin/Teacher
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    if (req.user.role === 'teacher' && user.role !== 'student') {
+       return res.status(403).json({ message: 'Not authorized' });
+    }
+    await User.findByIdAndDelete(req.params.id);
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
     res.status(500).json({ message: error.message });

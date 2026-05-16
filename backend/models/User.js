@@ -40,6 +40,9 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     sparse: true
   },
+  dob: {
+    type: String, // format YYYY-MM-DD
+  },
   department: String,
   semester: Number,
   section: String,

@@ -50,8 +50,8 @@ const AdminDashboard = () => {
     const fetchStats = async () => {
       try {
         const [usersRes, subjectsRes] = await Promise.all([
-          axios.get('/users'),
-          axios.get('/subjects')
+          axios.get('users'),
+          axios.get('subjects')
         ]);
         const users = usersRes.data.data;
         setStats(prev => ({

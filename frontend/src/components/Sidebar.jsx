@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   Users, 
@@ -8,36 +9,62 @@ import {
   History, 
   Settings,
   ShieldAlert,
-  HelpCircle
+  HelpCircle,
+  CheckSquare
 } from 'lucide-react';
 
 const Sidebar = ({ closeMobileMenu }) => {
   const location = useLocation();
+  const { user } = useAuth();
 
-  const sections = [
-    {
-      title: 'Administrative',
-      items: [
-        { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/admin/dashboard' },
-        { icon: <Users size={18} />, label: 'Student Directory', path: '/admin/students' },
-        { icon: <UserSquare2 size={18} />, label: 'Faculty Directory', path: '/admin/teachers' },
-      ]
-    },
-    {
-      title: 'Academic',
-      items: [
-        { icon: <BookOpen size={18} />, label: 'Course Catalog', path: '/admin/subjects' },
-        { icon: <History size={18} />, label: 'Attendance Logs', path: '/admin/attendance' },
-      ]
-    },
-    {
-      title: 'System',
-      items: [
-        { icon: <Settings size={18} />, label: 'Portal Settings', path: '/admin/settings' },
-        { icon: <ShieldAlert size={18} />, label: 'Security Audit', path: '/admin/audit' },
-      ]
-    }
-  ];
+  let sections = [];
+
+  if (user?.role === 'admin') {
+    sections = [
+      {
+        title: 'Administrative',
+        items: [
+          { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/admin/dashboard' },
+          { icon: <Users size={18} />, label: 'Student Directory', path: '/admin/students' },
+          { icon: <UserSquare2 size={18} />, label: 'Faculty Directory', path: '/admin/teachers' },
+        ]
+      },
+      {
+        title: 'Academic',
+        items: [
+          { icon: <BookOpen size={18} />, label: 'Course Catalog', path: '/admin/subjects' },
+          { icon: <History size={18} />, label: 'Attendance Logs', path: '/admin/attendance' },
+        ]
+      },
+      {
+        title: 'System',
+        items: [
+          { icon: <Settings size={18} />, label: 'Portal Settings', path: '/admin/settings' },
+          { icon: <ShieldAlert size={18} />, label: 'Security Audit', path: '/admin/audit' },
+        ]
+      }
+    ];
+  } else if (user?.role === 'teacher') {
+    sections = [
+      {
+        title: 'Academic',
+        items: [
+          { icon: <CheckSquare size={18} />, label: 'Mark Attendance', path: '/teacher/dashboard' },
+          { icon: <Users size={18} />, label: 'Manage Students', path: '/teacher/students' },
+        ]
+      }
+    ];
+  } else if (user?.role === 'student') {
+    sections = [
+      {
+        title: 'Academic Portal',
+        items: [
+          { icon: <LayoutDashboard size={18} />, label: 'My Dashboard', path: '/student/dashboard' },
+          { icon: <History size={18} />, label: 'Attendance History', path: '/student/history' },
+        ]
+      }
+    ];
+  }
 
   return (
     <aside className="w-72 bg-white border-r border-slate-200 h-[calc(100vh-64px)] sticky top-16 flex flex-col">

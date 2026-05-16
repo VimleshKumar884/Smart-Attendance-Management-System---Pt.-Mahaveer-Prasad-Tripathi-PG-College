@@ -46,7 +46,7 @@ const ManageTeachers = () => {
   const handleAddTeacher = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/users', formData);
+      await axios.post('users', formData);
       setIsModalOpen(false);
       fetchTeachers();
       setFormData({

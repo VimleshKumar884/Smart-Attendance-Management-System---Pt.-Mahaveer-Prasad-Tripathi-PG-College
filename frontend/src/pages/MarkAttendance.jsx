@@ -71,7 +71,7 @@ const MarkAttendance = () => {
         status
       }));
       
-      await axios.post('/attendance', {
+      await axios.post('attendance', {
         subjectId: selectedSubject,
         records,
         date
