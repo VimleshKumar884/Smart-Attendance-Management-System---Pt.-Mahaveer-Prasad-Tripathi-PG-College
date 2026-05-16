@@ -11,7 +11,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ closeMobileMenu }) => {
   const location = useLocation();
 
   const sections = [
