@@ -28,7 +28,7 @@ const MarkAttendance = () => {
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/subjects');
+        const res = await axios.get('/subjects');
         setSubjects(res.data.data);
       } catch (err) {
         console.error('Error fetching subjects');
@@ -71,7 +71,7 @@ const MarkAttendance = () => {
         status
       }));
       
-      await axios.post('http://localhost:5000/api/attendance', {
+      await axios.post('/attendance', {
         subjectId: selectedSubject,
         records,
         date

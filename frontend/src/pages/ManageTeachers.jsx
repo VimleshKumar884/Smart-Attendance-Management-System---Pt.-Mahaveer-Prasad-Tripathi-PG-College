@@ -30,7 +30,7 @@ const ManageTeachers = () => {
 
   const fetchTeachers = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/users');
+      const res = await axios.get('/users');
       setTeachers(res.data.data.filter(u => u.role === 'teacher'));
     } catch (err) {
       console.error('Error fetching teachers');
@@ -46,7 +46,7 @@ const ManageTeachers = () => {
   const handleAddTeacher = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/users', formData);
+      await axios.post('/users', formData);
       setIsModalOpen(false);
       fetchTeachers();
       setFormData({

@@ -13,7 +13,10 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'https://pmptmattendance.vercel.app'],
+  credentials: true
+}));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');

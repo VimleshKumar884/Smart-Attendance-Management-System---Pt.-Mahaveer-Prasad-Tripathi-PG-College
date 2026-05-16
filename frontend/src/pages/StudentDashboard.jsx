@@ -40,7 +40,7 @@ const StudentDashboard = () => {
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/attendance');
+        const res = await axios.get('/attendance');
         const data = res.data.data;
         setAttendanceData(data);
         

@@ -54,6 +54,7 @@ const Sidebar = () => {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={closeMobileMenu}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all duration-200 ${
                       isActive 
                         ? 'bg-primary/5 text-primary border-l-4 border-primary rounded-l-none' 

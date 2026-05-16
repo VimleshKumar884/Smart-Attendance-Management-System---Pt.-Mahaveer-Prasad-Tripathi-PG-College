@@ -31,7 +31,7 @@ const QRScanner = ({ onResult }) => {
         const payload = JSON.parse(result);
         
         // Mark attendance via API
-        const res = await axios.post('http://localhost:5000/api/attendance', {
+        const res = await axios.post('/attendance', {
           subjectId: payload.subjectId,
           records: [{ studentId: 'me', status: 'Present' }], // Backend should handle 'me' using req.user.id
           date: new Date().toISOString().split('T')[0]

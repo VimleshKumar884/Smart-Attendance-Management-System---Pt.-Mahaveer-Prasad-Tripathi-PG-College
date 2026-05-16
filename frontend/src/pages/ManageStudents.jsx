@@ -32,7 +32,7 @@ const ManageStudents = () => {
 
   const fetchStudents = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/users');
+      const res = await axios.get('/users');
       setStudents(res.data.data.filter(u => u.role === 'student'));
     } catch (err) {
       console.error('Error fetching students');
@@ -48,7 +48,7 @@ const ManageStudents = () => {
   const handleAddStudent = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/users', formData);
+      await axios.post('/users', formData);
       setIsModalOpen(false);
       fetchStudents();
       setFormData({
