@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Loader2, GraduationCap, ShieldCheck, KeyRound, ArrowLeft, Hash, Calendar } from 'lucide-react';
+import { Mail, Lock, Loader2, GraduationCap, ShieldCheck, KeyRound, ArrowLeft, Hash, Calendar, UserCheck, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Login = () => {
   const [loginType, setLoginType] = useState('student'); // 'student' or 'faculty'
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   
   // Student Login State
   const [rollNumber, setRollNumber] = useState('');
@@ -18,8 +19,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Forgot Password State
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [securityQuestion, setSecurityQuestion] = useState('');
   const [securityAnswer, setSecurityAnswer] = useState('');
@@ -48,7 +47,7 @@ const Login = () => {
       else if (data.user.role === 'teacher') navigate('/teacher/dashboard');
       else navigate('/student/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed. Please check your credentials.');
+      setError(err.response?.data?.message || 'Galti: Email ya password sahi nahi hai.');
     } finally {
       setLoading(false);
     }
@@ -63,7 +62,7 @@ const Login = () => {
       setSecurityQuestion(data.question);
       setResetStep(2);
     } catch (err) {
-      setError(err.response?.data?.message || 'Email not found.');
+      setError('Email nahi mila. Kripya sahi email dalein.');
     } finally {
       setLoading(false);
     }
@@ -75,260 +74,215 @@ const Login = () => {
     setError('');
     try {
       await resetPassword(forgotEmail, securityAnswer, newPassword);
-      setSuccessMsg('Password reset successfully! You can now login.');
+      setSuccessMsg('Password badal diya gaya hai! Ab aap login kar sakte hain.');
       setTimeout(() => {
         setIsForgotPassword(false);
         setResetStep(1);
         setSuccessMsg('');
-        setForgotEmail('');
-        setSecurityAnswer('');
-        setNewPassword('');
       }, 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Incorrect answer or failed to reset.');
+      setError('Sahi jawab nahi hai.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Refined Background - subtle institutional feel */}
-      <div className="absolute top-0 left-0 w-full h-1.5 bg-primary"></div>
-      <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none select-none overflow-hidden flex flex-wrap justify-around items-center">
-        {[...Array(20)].map((_, i) => <GraduationCap key={i} size={120} className="rotate-12" />)}
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
+      
+      {/* College Logo/Name Section - Very Clear */}
+      <div className="text-center mb-8">
+        <div className="bg-primary w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-4 border-white">
+          <GraduationCap size={40} className="text-white" />
+        </div>
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 uppercase tracking-tight">
+          Pt. Mahaveer Prasad Tripathi PG College
+        </h1>
+        <p className="text-slate-500 font-bold mt-1 tracking-widest text-sm uppercase">Attendance Portal</p>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-10"
-      >
-        {/* Simple Branding Header */}
-        <div className="bg-primary p-8 text-center border-b border-primary-dark/20">
-          <div className="bg-white/10 w-16 h-16 rounded-2xl flex items-center justify-center border border-white/20 mb-4 mx-auto backdrop-blur-sm">
-            <GraduationCap size={32} className="text-white" />
-          </div>
-          <h2 className="text-xl font-black text-white tracking-tight uppercase">PT. MPT PG College</h2>
-          <p className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em] mt-1">Institutional Attendance Portal</p>
+      <div className="w-full max-w-md bg-white rounded-xl shadow-2xl border-t-8 border-primary overflow-hidden">
+        
+        {/* Simple Tab Selection */}
+        <div className="flex border-b border-slate-100">
+          <button 
+            onClick={() => { setLoginType('student'); setIsForgotPassword(false); setError(''); }}
+            className={`flex-1 py-5 font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${loginType === 'student' ? 'bg-white text-primary' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+          >
+            <Users size={18} />
+            Student (Chatra)
+          </button>
+          <button 
+            onClick={() => { setLoginType('faculty'); setIsForgotPassword(false); setError(''); }}
+            className={`flex-1 py-5 font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${loginType === 'faculty' ? 'bg-white text-primary' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+          >
+            <UserCheck size={18} />
+            Faculty (Shikshak)
+          </button>
         </div>
 
         <div className="p-8">
           <AnimatePresence mode="wait">
             {!isForgotPassword ? (
-              <motion.div 
-                key="login"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="space-y-6"
-              >
-                {/* Clean Portal Selector */}
-                <div className="flex p-1 bg-slate-100 rounded-xl">
-                  <button
-                    onClick={() => { setLoginType('student'); setError(''); }}
-                    className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${loginType === 'student' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                  >
-                    Student
-                  </button>
-                  <button
-                    onClick={() => { setLoginType('faculty'); setError(''); }}
-                    className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${loginType === 'faculty' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                  >
-                    Faculty
-                  </button>
+              <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                
+                <div className="mb-8 text-center">
+                  <h2 className="text-xl font-black text-slate-800">
+                    {loginType === 'student' ? 'Student Login' : 'Teacher/Admin Login'}
+                  </h2>
+                  <p className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tighter">Enter details below to enter your portal</p>
                 </div>
 
-                {successMsg && (
-                  <div className="bg-emerald-50 text-emerald-600 px-4 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-pulse"></div>
-                    {successMsg}
-                  </div>
-                )}
-                
                 {error && (
-                  <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest border border-red-100 flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></div>
+                  <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm font-bold border border-red-100 mb-6 flex items-center gap-3">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                     {error}
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                {successMsg && (
+                  <div className="bg-emerald-50 text-emerald-600 p-4 rounded-lg text-sm font-bold border border-emerald-100 mb-6 flex items-center gap-3">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    {successMsg}
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
                   {loginType === 'faculty' ? (
                     <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Official Email</label>
-                        <div className="relative group">
-                          <Mail className="absolute left-3.5 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
-                          <input 
-                            type="email" 
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="input-field pl-10 py-3 font-bold text-sm"
-                            placeholder="faculty@college.edu"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between items-center px-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
-                          <button type="button" onClick={() => { setIsForgotPassword(true); setError(''); }} className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">Forgot?</button>
-                        </div>
-                        <div className="relative group">
-                          <Lock className="absolute left-3.5 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
-                          <input 
-                            type="password" 
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="input-field pl-10 py-3 font-bold text-sm"
-                            placeholder="••••••••"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Roll Number</label>
-                        <div className="relative group">
-                          <Hash className="absolute left-3.5 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
-                          <input 
-                            type="text" 
-                            value={rollNumber}
-                            onChange={(e) => setRollNumber(e.target.value)}
-                            className="input-field pl-10 py-3 font-bold text-sm uppercase"
-                            placeholder="CS2026001"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Date of Birth</label>
-                        <div className="relative group">
-                          <Calendar className="absolute left-3.5 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
-                          <input 
-                            type="date" 
-                            value={dob}
-                            onChange={(e) => setDob(e.target.value)}
-                            className="input-field pl-10 py-3 font-bold text-sm text-slate-500"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <button 
-                    type="submit" 
-                    disabled={loading}
-                    className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black hover:bg-slate-800 transition-all shadow-lg active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-3 uppercase text-[10px] tracking-[0.2em]"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={16} /> : 'Access Account'}
-                  </button>
-                </form>
-
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-center gap-6">
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Portal Support</p>
-                  <button className="text-primary text-[10px] font-black uppercase tracking-widest hover:underline">Registrar Office</button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="forgot"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="space-y-6"
-              >
-                <button 
-                  onClick={() => { setIsForgotPassword(false); setResetStep(1); setError(''); }}
-                  className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
-                >
-                  <ArrowLeft size={14} /> Back to Login
-                </button>
-                
-                <div className="text-center">
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Recovery</h3>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                    {resetStep === 1 ? "Verify Email" : "Verification Step 2"}
-                  </p>
-                </div>
-
-                <form onSubmit={resetStep === 1 ? handleForgotSubmit : handleResetSubmit} className="space-y-5">
-                  {error && (
-                    <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest border border-red-100 flex items-center gap-3">
-                      <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></div>
-                      {error}
-                    </div>
-                  )}
-                  
-                  {resetStep === 1 ? (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Registered Email</label>
-                      <div className="relative group">
-                        <Mail className="absolute left-3.5 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-500 uppercase ml-1">Email Address</label>
                         <input 
-                          type="email" 
-                          value={forgotEmail}
-                          onChange={(e) => setForgotEmail(e.target.value)}
-                          className="input-field pl-10 py-3 font-bold text-sm"
-                          placeholder="faculty@college.edu"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:bg-white outline-none transition-all font-bold text-slate-700"
+                          placeholder="email@college.edu"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-xs font-black text-slate-500 uppercase">Password</label>
+                          <button type="button" onClick={() => setIsForgotPassword(true)} className="text-[10px] font-black text-primary hover:underline uppercase">Forgot?</button>
+                        </div>
+                        <input 
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:bg-white outline-none transition-all font-bold text-slate-700"
+                          placeholder="••••••••"
                           required
                         />
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Security Question</label>
-                        <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 text-slate-800 font-bold text-xs leading-relaxed italic">
-                          "{securityQuestion}"
-                        </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-500 uppercase ml-1">Roll Number</label>
+                        <input 
+                          type="text"
+                          value={rollNumber}
+                          onChange={(e) => setRollNumber(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:bg-white outline-none transition-all font-bold text-slate-700 uppercase"
+                          placeholder="CS2026001"
+                          required
+                        />
                       </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Your Answer</label>
-                        <div className="relative group">
-                          <KeyRound className="absolute left-3.5 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
-                          <input 
-                            type="text" 
-                            value={securityAnswer}
-                            onChange={(e) => setSecurityAnswer(e.target.value)}
-                            className="input-field pl-10 py-3 font-bold text-sm"
-                            placeholder="Exact registered answer"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">New Password</label>
-                        <div className="relative group">
-                          <Lock className="absolute left-3.5 top-3.5 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
-                          <input 
-                            type="password" 
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="input-field pl-10 py-3 font-bold text-sm"
-                            placeholder="••••••••"
-                            required
-                            minLength={6}
-                          />
-                        </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-500 uppercase ml-1">Date of Birth (DOB)</label>
+                        <input 
+                          type="date"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:bg-white outline-none transition-all font-bold text-slate-600"
+                          required
+                        />
                       </div>
                     </div>
                   )}
 
                   <button 
-                    type="submit" 
+                    type="submit"
                     disabled={loading}
-                    className="w-full bg-primary text-white py-3.5 rounded-xl font-black shadow-lg active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-3 uppercase text-[10px] tracking-[0.2em]"
+                    className="w-full bg-primary text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
                   >
-                    {loading ? <Loader2 className="animate-spin" size={16} /> : (resetStep === 1 ? 'Verify Email' : 'Update Password')}
+                    {loading ? <Loader2 className="animate-spin" size={20} /> : 'Login to Dashboard'}
+                  </button>
+                </form>
+              </motion.div>
+            ) : (
+              <motion.div key="forgot" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <button 
+                  onClick={() => { setIsForgotPassword(false); setResetStep(1); setError(''); }}
+                  className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest mb-6"
+                >
+                  <ArrowLeft size={14} /> Back to Login
+                </button>
+
+                <div className="text-center mb-8">
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Reset Password</h2>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Verification Required</p>
+                </div>
+
+                <form onSubmit={resetStep === 1 ? handleForgotSubmit : handleResetSubmit} className="space-y-5">
+                  {error && (
+                    <div className="bg-red-50 text-red-600 p-4 rounded-lg text-[10px] font-black uppercase border border-red-100 mb-6 flex items-center gap-3">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      {error}
+                    </div>
+                  )}
+
+                  {resetStep === 1 ? (
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-500 uppercase ml-1">Your Registered Email</label>
+                      <input 
+                        type="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary outline-none font-bold text-sm"
+                        placeholder="email@college.edu"
+                        required
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
+                        <p className="text-[10px] font-black text-primary uppercase mb-1">Security Question:</p>
+                        <p className="text-sm font-bold text-slate-800 italic">"{securityQuestion}"</p>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-500 uppercase ml-1">Your Answer</label>
+                        <input 
+                          type="text"
+                          value={securityAnswer}
+                          onChange={(e) => setSecurityAnswer(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary outline-none font-bold text-sm"
+                          placeholder="Type answer here..."
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-500 uppercase ml-1">New Password</label>
+                        <input 
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary outline-none font-bold text-sm"
+                          placeholder="••••••••"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-primary text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : (resetStep === 1 ? 'Verify Email' : 'Change Password')}
                   </button>
                 </form>
               </motion.div>
@@ -336,14 +290,12 @@ const Login = () => {
           </AnimatePresence>
         </div>
 
-        {/* Footer simple text */}
-        <div className="p-6 bg-slate-50 border-t border-slate-100 text-center">
-          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-            <ShieldCheck size={12} className="text-slate-300" />
-            Institutional Grade Encryption Active
-          </p>
+        <div className="bg-slate-50 p-4 text-center border-t border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">© 2026 Institutional Portal Security</p>
         </div>
-      </motion.div>
+      </div>
+
+      <p className="mt-8 text-slate-400 text-xs font-bold uppercase tracking-tighter">Pt. Mahaveer Prasad Tripathi PG College, IT Department</p>
     </div>
   );
 };
