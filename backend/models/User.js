@@ -18,7 +18,7 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Please add a password'],
-    minlength: 6,
+    minlength: 8,
     select: false // Do not return password by default
   },
   role: {
@@ -51,6 +51,12 @@ const UserSchema = new mongoose.Schema({
     default: 0
   },
   // Teacher specific fields
+  employeeId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  phone: String,
   subject: String, // Can be an array if a teacher handles multiple subjects
 }, { timestamps: true });
 

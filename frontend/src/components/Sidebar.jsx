@@ -1,109 +1,78 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  UserSquare2, 
-  BookOpen, 
-  History, 
+import { NavLink } from 'react-router-dom';
+import {
+  BarChart3,
+  BookOpenCheck,
+  CalendarCheck2,
+  GraduationCap,
+  Home,
   Settings,
-  ShieldAlert,
-  HelpCircle,
-  CheckSquare
+  LibraryBig,
+  UserRoundCheck,
+  Users,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { INSTITUTION_NAME, SYSTEM_NAME, cx } from '../lib/helpers';
+
+const navByRole = {
+  admin: [
+    { icon: Home, label: 'Home', path: '/admin/dashboard' },
+    { icon: Users, label: 'Students', path: '/admin/students' },
+    { icon: UserRoundCheck, label: 'Faculty', path: '/admin/faculty' },
+    { icon: LibraryBig, label: 'Subjects', path: '/admin/subjects' },
+    { icon: BarChart3, label: 'Attendance Reports', path: '/admin/attendance' },
+    { icon: Settings, label: 'Settings', path: '/admin/settings' },
+  ],
+  teacher: [
+    { icon: BookOpenCheck, label: 'My Subjects', path: '/faculty/subjects' },
+    { icon: CalendarCheck2, label: 'Mark Attendance', path: '/faculty/mark-attendance' },
+    { icon: BarChart3, label: 'Attendance History', path: '/faculty/history' },
+  ],
+  student: [
+    { icon: Home, label: 'Home', path: '/student/dashboard' },
+    { icon: CalendarCheck2, label: 'Attendance', path: '/student/dashboard#attendance' },
+    { icon: Users, label: 'Profile', path: '/student/dashboard#profile' },
+  ],
+};
 
 const Sidebar = ({ closeMobileMenu }) => {
-  const location = useLocation();
   const { user } = useAuth();
-
-  let sections = [];
-
-  if (user?.role === 'admin') {
-    sections = [
-      {
-        title: 'Administrative',
-        items: [
-          { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/admin/dashboard' },
-          { icon: <Users size={18} />, label: 'Student Directory', path: '/admin/students' },
-          { icon: <UserSquare2 size={18} />, label: 'Faculty Directory', path: '/admin/teachers' },
-        ]
-      },
-      {
-        title: 'Academic',
-        items: [
-          { icon: <BookOpen size={18} />, label: 'Course Catalog', path: '/admin/subjects' },
-          { icon: <History size={18} />, label: 'Attendance Logs', path: '/admin/attendance' },
-        ]
-      },
-      {
-        title: 'System',
-        items: [
-          { icon: <Settings size={18} />, label: 'Portal Settings', path: '/admin/settings' },
-          { icon: <ShieldAlert size={18} />, label: 'Security Audit', path: '/admin/audit' },
-        ]
-      }
-    ];
-  } else if (user?.role === 'teacher') {
-    sections = [
-      {
-        title: 'Academic',
-        items: [
-          { icon: <CheckSquare size={18} />, label: 'Mark Attendance', path: '/teacher/dashboard' },
-          { icon: <Users size={18} />, label: 'Manage Students', path: '/teacher/students' },
-        ]
-      }
-    ];
-  } else if (user?.role === 'student') {
-    sections = [
-      {
-        title: 'Academic Portal',
-        items: [
-          { icon: <LayoutDashboard size={18} />, label: 'My Dashboard', path: '/student/dashboard' },
-          { icon: <History size={18} />, label: 'Attendance History', path: '/student/history' },
-        ]
-      }
-    ];
-  }
+  const items = navByRole[user?.role] || [];
 
   return (
-    <aside className="w-72 bg-white border-r border-slate-200 h-[calc(100vh-64px)] sticky top-16 flex flex-col">
-      <div className="flex-grow py-8 px-4 overflow-y-auto space-y-8">
-        {sections.map((section) => (
-          <div key={section.title} className="space-y-3">
-            <p className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-[0.2em]">
-              {section.title}
-            </p>
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={closeMobileMenu}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all duration-200 ${
-                      isActive 
-                        ? 'bg-primary/5 text-primary border-l-4 border-primary rounded-l-none' 
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
+    <aside className="flex h-full w-72 flex-col border-r border-slate-200 bg-white">
+      <div className="border-b border-slate-200 p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-white">
+            <GraduationCap size={25} />
           </div>
-        ))}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black uppercase text-slate-950">{INSTITUTION_NAME}</p>
+            <p className="text-xs font-bold text-primary">{SYSTEM_NAME}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-        <button className="flex items-center gap-3 w-full px-4 py-3 text-slate-500 hover:text-primary transition-colors text-sm font-bold">
-          <HelpCircle size={18} />
-          Technical Support
-        </button>
-      </div>
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={closeMobileMenu}
+              className={({ isActive }) => cx(
+                'tap-target flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold transition',
+                isActive
+                  ? 'bg-blue-50 text-primary ring-1 ring-blue-100'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
+              )}
+            >
+              <Icon size={19} />
+              <span>{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
     </aside>
   );
 };

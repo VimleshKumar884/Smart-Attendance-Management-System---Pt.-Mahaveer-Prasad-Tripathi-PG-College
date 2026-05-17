@@ -1,7 +1,7 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Navbar from './components/Navbar';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, roleHomePath, roleLoginPath, useAuth } from './context/AuthContext';
+import { ToastProvider } from './components/Toast';
+import Spinner from './components/Spinner';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import AdminLayout from './layouts/AdminLayout';
@@ -10,21 +10,30 @@ import ManageStudents from './pages/ManageStudents';
 import ManageTeachers from './pages/ManageTeachers';
 import MarkAttendance from './pages/MarkAttendance';
 import StudentDashboard from './pages/StudentDashboard';
+import AttendanceReports from './pages/AttendanceReports';
+import Settings from './pages/Settings';
+import FacultySubjects from './pages/FacultySubjects';
+import AttendanceHistory from './pages/AttendanceHistory';
+import Subjects from './pages/Subjects';
 
-// Protected Route Component
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  );
+  if (loading) return <Spinner label="Checking secure session..." fullScreen />;
   
-  if (!user) return <Navigate to="/login" />;
+  if (!user) {
+    const requestedRole = location.pathname.startsWith('/admin')
+      ? 'admin'
+      : location.pathname.startsWith('/faculty') || location.pathname.startsWith('/teacher')
+        ? 'teacher'
+        : 'student';
+
+    return <Navigate to={roleLoginPath[requestedRole]} state={{ from: location }} replace />;
+  }
   
   if (roles && !roles.includes(user.role)) {
-    return <Navigate to="/" />;
+    return <Navigate to={roleHomePath[user.role] || '/'} replace />;
   }
 
   return children;
@@ -32,59 +41,57 @@ const ProtectedRoute = ({ children, roles }) => {
 
 const AppContent = () => {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-grow">
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin/*" element={
-            <ProtectedRoute roles={['admin']}>
-              <AdminLayout>
-                <Routes>
-                  <Route path="dashboard" element={<AdminDashboard />} />
-                  <Route path="students" element={<ManageStudents />} />
-                  <Route path="teachers" element={<ManageTeachers />} />
-                  <Route path="subjects" element={<div className="glass p-8 rounded-3xl"><h2 className="text-2xl font-bold">Manage Subjects</h2></div>} />
-                  <Route path="*" element={<Navigate to="dashboard" />} />
-                </Routes>
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Navigate to="/login/student" replace />} />
+      <Route path="/login/:role" element={<Login />} />
+      
+      <Route path="/admin/*" element={
+        <ProtectedRoute roles={['admin']}>
+          <AdminLayout>
+            <Routes>
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="students" element={<ManageStudents />} />
+              <Route path="faculty" element={<ManageTeachers />} />
+              <Route path="teachers" element={<Navigate to="/admin/faculty" replace />} />
+              <Route path="subjects" element={<Subjects />} />
+              <Route path="attendance" element={<AttendanceReports />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="dashboard" replace />} />
+            </Routes>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
 
-          {/* Teacher Routes */}
-          <Route path="/teacher/*" element={
-            <ProtectedRoute roles={['teacher']}>
-              <AdminLayout>
-                <Routes>
-                  <Route path="dashboard" element={<MarkAttendance />} />
-                  <Route path="students" element={<ManageStudents />} />
-                  <Route path="*" element={<Navigate to="dashboard" />} />
-                </Routes>
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
+      <Route path="/faculty/*" element={
+        <ProtectedRoute roles={['teacher']}>
+          <AdminLayout>
+            <Routes>
+              <Route path="dashboard" element={<Navigate to="/faculty/subjects" replace />} />
+              <Route path="subjects" element={<FacultySubjects />} />
+              <Route path="mark-attendance" element={<MarkAttendance />} />
+              <Route path="history" element={<AttendanceHistory />} />
+              <Route path="*" element={<Navigate to="subjects" replace />} />
+            </Routes>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
 
-          {/* Student Routes */}
-          <Route path="/student/*" element={
-            <ProtectedRoute roles={['student']}>
-              <AdminLayout>
-                <Routes>
-                  <Route path="dashboard" element={<StudentDashboard />} />
-                  <Route path="history" element={<div className="glass p-8 rounded-3xl"><h2 className="text-2xl font-bold">Attendance History</h2></div>} />
-                  <Route path="*" element={<Navigate to="dashboard" />} />
-                </Routes>
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </main>
-      <footer className="py-8 text-center text-slate-400 text-sm border-t border-slate-100 bg-white">
-        © 2026 Pt. Mahaveer Prasad Tripathi PG College. All rights reserved.
-      </footer>
-    </div>
+      <Route path="/teacher/*" element={<Navigate to="/faculty/subjects" replace />} />
+
+      <Route path="/student/*" element={
+        <ProtectedRoute roles={['student']}>
+          <AdminLayout>
+            <Routes>
+              <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="*" element={<Navigate to="dashboard" replace />} />
+            </Routes>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
@@ -92,7 +99,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

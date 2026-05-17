@@ -1,6 +1,4 @@
 const Assignment = require('../models/Assignment');
-const Subject = require('../models/Subject');
-const User = require('../models/User');
 
 // @desc    Get assignments
 // @route   GET /api/assignments
@@ -12,8 +10,8 @@ exports.getAssignments = async (req, res) => {
       query.facultyId = req.user.id;
     }
     const assignments = await Assignment.find(query)
-      .populate('subjectId', 'subjectName subjectCode')
-      .populate('facultyId', 'name email');
+      .populate('subjectId', 'subjectName subjectCode department semester section')
+      .populate('facultyId', 'name email employeeId');
       
     res.status(200).json({ success: true, count: assignments.length, data: assignments });
   } catch (error) {
@@ -37,11 +35,42 @@ exports.createAssignment = async (req, res) => {
     const assignment = await Assignment.create({ facultyId, subjectId, section, semester });
     
     // Populate for response
-    await assignment.populate('subjectId', 'subjectName subjectCode');
-    await assignment.populate('facultyId', 'name email');
+    await assignment.populate('subjectId', 'subjectName subjectCode department semester section');
+    await assignment.populate('facultyId', 'name email employeeId');
     
     res.status(201).json({ success: true, data: assignment });
   } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Replace all subject assignments for a faculty member
+// @route   PUT /api/assignments/faculty/:facultyId
+// @access  Private/Admin
+exports.syncFacultyAssignments = async (req, res) => {
+  try {
+    const { assignments = [] } = req.body;
+    const { facultyId } = req.params;
+
+    await Assignment.deleteMany({ facultyId });
+
+    const docs = assignments.map((assignment) => ({
+      facultyId,
+      subjectId: assignment.subjectId,
+      semester: assignment.semester,
+      section: assignment.section || 'A'
+    })).filter((assignment) => assignment.subjectId && assignment.semester);
+
+    const created = docs.length ? await Assignment.insertMany(docs) : [];
+    const populated = await Assignment.find({ facultyId })
+      .populate('subjectId', 'subjectName subjectCode department semester section')
+      .populate('facultyId', 'name email employeeId');
+
+    res.status(200).json({ success: true, count: created.length, data: populated });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Duplicate subject assignment found.' });
+    }
     res.status(400).json({ message: error.message });
   }
 };

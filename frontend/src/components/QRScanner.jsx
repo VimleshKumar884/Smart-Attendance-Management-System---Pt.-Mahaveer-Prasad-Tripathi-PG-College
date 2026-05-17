@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import axios from 'axios';
 import { 
   CheckCircle2, 
-  X, 
   Loader2, 
   QrCode,
   ShieldCheck,
@@ -47,7 +46,7 @@ const QRScanner = ({ onResult }) => {
       }
     }
 
-    function onScanError(err) {
+    function onScanError() {
       // Quietly ignore scan errors
     }
 

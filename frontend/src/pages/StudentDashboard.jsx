@@ -1,340 +1,309 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { 
-  BarChart3, 
-  PieChart as PieChartIcon, 
-  Calendar, 
-  Download,
-  AlertCircle,
-  TrendingUp,
-  BookOpen,
-  QrCode,
-  GraduationCap
-} from 'lucide-react';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid
-} from 'recharts';
+import { AlertTriangle, CalendarDays, Download, GraduationCap, UserCircle } from 'lucide-react';
+import Spinner from '../components/Spinner';
+import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
-import QRScanner from '../components/QRScanner';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import {
+  attendanceTone,
+  downloadCsv,
+  formatDisplayDate,
+  getFriendlyError,
+  percentageClass,
+  toDateKey,
+} from '../lib/helpers';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [summary, setSummary] = useState({
-    total: 0,
-    present: 0,
-    absent: 0,
-    percentage: 0
-  });
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const { showToast } = useToast();
 
   useEffect(() => {
     const fetchAttendance = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const res = await axios.get('attendance');
-        const data = res.data.data;
-        setAttendanceData(data);
-        
-        const total = data.length;
-        const present = data.filter(a => a.status === 'Present').length;
-        const late = data.filter(a => a.status === 'Late').length;
-        const absent = data.filter(a => a.status === 'Absent').length;
-        
-        // Late counts as 0.5 for percentage calculation
-        const percentage = total > 0 ? ((present + late * 0.5) / total) * 100 : 0;
-        
-        setSummary({ total, present, absent, late, percentage: Math.round(percentage) });
+        const res = await axios.get('/attendance');
+        setRecords(res.data.data || []);
       } catch (err) {
-        console.error('Error fetching attendance');
+        setError(getFriendlyError(err, 'Could not load your attendance.'));
+      } finally {
+        setLoading(false);
       }
     };
+
     fetchAttendance();
   }, []);
 
-  const pieData = [
-    { name: 'Present', value: summary.present, color: '#0f4c81' }, // primary
-    { name: 'Absent', value: summary.absent, color: '#ef4444' }, // red
-    { name: 'Late', value: summary.late, color: '#f59e0b' }, // accent
-  ];
+  const subjectRows = useMemo(() => {
+    const grouped = records.reduce((map, record) => {
+      const subjectId = record.subjectId?._id || record.subjectId || 'general';
+      const subjectName = record.subjectId?.subjectName || 'General Subject';
+      if (!map[subjectId]) {
+        map[subjectId] = {
+          subject: subjectName,
+          total: 0,
+          present: 0,
+          late: 0,
+          absent: 0,
+        };
+      }
+      map[subjectId].total += 1;
+      if (record.status === 'Present') map[subjectId].present += 1;
+      if (record.status === 'Late') map[subjectId].late += 1;
+      if (record.status === 'Absent') map[subjectId].absent += 1;
+      return map;
+    }, {});
 
-  const subjectData = [
-    { name: 'Maths', percentage: 85 },
-    { name: 'Physics', percentage: 70 },
-    { name: 'CS', percentage: 95 },
-    { name: 'English', percentage: 80 },
-  ];
+    return Object.values(grouped).map((row) => {
+      const effectivePresent = row.present + row.late * 0.5;
+      const percentage = row.total ? Math.round((effectivePresent / row.total) * 100) : 0;
+      return { ...row, percentage };
+    }).sort((a, b) => a.subject.localeCompare(b.subject));
+  }, [records]);
+
+  const warningRows = subjectRows.filter((row) => row.percentage < 75);
+  const hasWarnings = warningRows.length > 0;
+  const hasAttendance = subjectRows.length > 0;
+
+  const calendarDays = useMemo(() => buildMonthCalendar(records), [records]);
+
+  const downloadReport = () => {
+    if (!subjectRows.length) {
+      showToast('No attendance records available to download.', 'error');
+      return;
+    }
+
+    const rows = [
+      ['Subject', 'Total Classes', 'Present', 'Absent', 'Late', 'Percentage'],
+      ...subjectRows.map((row) => [row.subject, row.total, row.present, row.absent, row.late, `${row.percentage}%`]),
+      [],
+      ['Date', 'Subject', 'Lecture', 'Status'],
+      ...records.map((record) => [
+        formatDisplayDate(record.date),
+        record.subjectId?.subjectName || 'General Subject',
+        record.lecture_no || 'N/A',
+        record.status || 'N/A',
+      ]),
+    ];
+
+    downloadCsv(`my-attendance-report-${Date.now()}.csv`, rows);
+    showToast('Attendance report downloaded as CSV.', 'success');
+  };
+
+  if (loading) return <Spinner label="Loading student dashboard..." />;
 
   return (
-    <div className="space-y-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-8 gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Academic Overview</h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-2">Student Portal • Session 2026-27</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setIsScannerOpen(true)}
-            className="bg-primary text-white px-6 py-3 rounded-lg font-bold shadow-sm flex items-center justify-center gap-2 hover:bg-primary-dark transition-all active:scale-95"
-          >
-            <QrCode size={18} />
-            Scan Class QR
-          </button>
-          <button className="bg-white text-slate-700 px-6 py-3 rounded-lg font-bold border border-slate-200 shadow-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
-            <Download size={18} />
-            Export Transcript
-          </button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <AttendanceBanner hasAttendance={hasAttendance} hasWarnings={hasWarnings} warningRows={warningRows} />
 
-      {/* QR Scanner Modal */}
-      <AnimatePresence>
-        {isScannerOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsScannerOpen(false)}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg"
-            >
-              <button 
-                onClick={() => setIsScannerOpen(false)}
-                className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
-              >
-                <X size={24} />
-              </button>
-              <QRScanner onResult={() => {
-                // Refresh data after successful scan
-                // fetchAttendance();
-              }} />
-            </motion.div>
+      <div id="profile" className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[auto_1fr_auto] lg:items-center">
+        <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-blue-50 text-primary lg:mx-0">
+          {user?.photo ? (
+            <img src={user.photo} alt={user.name || 'Student'} className="h-full w-full object-cover" />
+          ) : (
+            <UserCircle size={58} />
+          )}
+        </div>
+        <div className="text-center lg:text-left">
+          <h1 className="text-2xl font-black text-slate-950 md:text-3xl">{user?.name || 'Student'}</h1>
+          <p className="mt-1 text-sm font-bold text-slate-500">Roll No: {user?.rollNumber || 'N/A'}</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <ProfileMeta label="Class" value={`Sem ${user?.semester || 'N/A'} · Section ${user?.section || 'N/A'}`} />
+            <ProfileMeta label="Department" value={user?.department || 'N/A'} />
           </div>
-        )}
-      </AnimatePresence>
-
-      {/* Low Attendance Alert */}
-      {summary.total > 0 && summary.percentage < 75 && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-2xl flex items-start gap-4 shadow-sm"
+        </div>
+        <button
+          type="button"
+          onClick={downloadReport}
+          className="tap-target inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary-dark"
         >
-          <div className="p-2 bg-red-100 text-red-600 rounded-lg mt-1">
-            <AlertCircle size={24} />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-red-800 font-black uppercase text-xs tracking-widest">Low Attendance Warning</h3>
-            <p className="text-red-700/80 text-sm font-bold">
-              Your cumulative attendance is currently <span className="underline">{summary.percentage}%</span>. 
-              This is below the mandatory <span className="font-black">75%</span> threshold required for examination eligibility. 
-              Please contact your department head immediately.
-            </p>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Profile summary */}
-      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row items-center gap-6">
-        <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center text-primary font-black text-3xl border-2 border-slate-200">
-           {user?.name?.charAt(0)}
-        </div>
-        <div className="flex-grow text-center md:text-left">
-           <h2 className="text-2xl font-black text-slate-900">{user?.name}</h2>
-           <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Roll No: {user?.rollNumber || 'N/A'}</p>
-        </div>
-        <div className="flex items-center gap-6 bg-slate-50 px-6 py-4 rounded-xl border border-slate-100">
-           <div className="text-center">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Department</p>
-             <p className="text-sm font-bold text-slate-800">{user?.department || 'B.Sc CS'}</p>
-           </div>
-           <div className="w-px h-8 bg-slate-200"></div>
-           <div className="text-center">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Semester</p>
-             <p className="text-sm font-bold text-slate-800">Sem {user?.semester || '4'}</p>
-           </div>
-        </div>
+          <Download size={18} />
+          Download My Attendance Report
+        </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <SummaryCard 
-          icon={<TrendingUp />}
-          label="Cumulative Attendance"
-          value={`${summary.percentage}%`}
-          color="text-primary"
-          bg="bg-blue-50"
-        />
-        <SummaryCard 
-          icon={<BookOpen />}
-          label="Total Lectures"
-          value={summary.total}
-          color="text-emerald-600"
-          bg="bg-emerald-50"
-        />
-        <SummaryCard 
-          icon={<AlertCircle />}
-          label="Total Absences"
-          value={summary.absent}
-          color="text-red-600"
-          bg="bg-red-50"
-        />
-        <SummaryCard 
-          icon={<Calendar />}
-          label="Late Marks"
-          value={summary.late}
-          color="text-accent"
-          bg="bg-yellow-50"
-        />
-      </div>
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Subject Breakdown */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden lg:col-span-2">
-          <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="text-lg font-black text-slate-900">Module Performance</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Attendance by Subject</p>
-          </div>
-          <div className="p-8 h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={subjectData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 700}} dy={10} />
-                <YAxis hide domain={[0, 100]} />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                />
-                <Bar 
-                  dataKey="percentage" 
-                  fill="#0f4c81" 
-                  radius={[4, 4, 0, 0]} 
-                  barSize={30}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <section id="attendance" className="space-y-4">
+        <div className="flex items-center gap-3">
+          <GraduationCap className="text-primary" size={26} />
+          <h2 className="text-xl font-black text-slate-950">Subject-wise Attendance</h2>
         </div>
 
-        {/* Progress Chart */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden lg:col-span-1">
-          <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="text-lg font-black text-slate-900">Attendance Ratio</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Current Semester</p>
-          </div>
-          <div className="p-8 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex justify-center gap-6 pb-6">
-            {pieData.map(item => (
-              <div key={item.name} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: item.color }}></div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">{item.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* History Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <h3 className="text-lg font-black text-slate-900">Recent Logs</h3>
-          <span className="text-xs font-black text-primary cursor-pointer hover:underline uppercase tracking-widest">View Archives</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-white text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200">
-                <th className="px-8 py-4">Date</th>
-                <th className="px-8 py-4">Course Module</th>
-                <th className="px-8 py-4">Status</th>
-                <th className="px-8 py-4">Instructor</th>
+        <div className="hidden md:block table-shell">
+          <table className="w-full border-collapse text-left">
+            <thead className="table-head">
+              <tr>
+                <th className="px-5 py-4">Subject</th>
+                <th className="px-5 py-4">Total Classes</th>
+                <th className="px-5 py-4">Present</th>
+                <th className="px-5 py-4">Absent</th>
+                <th className="px-5 py-4">Percentage</th>
+                <th className="px-5 py-4">Warning</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {attendanceData.slice(0, 5).map((record) => (
-                <tr key={record._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-8 py-4 font-bold text-slate-700 text-sm">
-                    {new Date(record.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td className="px-8 py-4 text-sm font-bold text-slate-800">
-                    {record.subjectId?.subjectName || 'General Module'}
-                  </td>
-                  <td className="px-8 py-4">
-                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border ${
-                      record.status === 'Present' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
-                      record.status === 'Absent' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-yellow-50 text-yellow-600 border-yellow-200'
-                    }`}>
-                      {record.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-4 text-sm font-bold text-slate-500">
-                    {record.teacherId?.name || 'Faculty Staff'}
+            <tbody>
+              {subjectRows.map((row) => (
+                <tr key={row.subject} className="table-row">
+                  <td className="px-5 py-4 font-black text-slate-900">{row.subject}</td>
+                  <td className="px-5 py-4 font-bold text-slate-700">{row.total}</td>
+                  <td className="px-5 py-4 font-bold text-emerald-700">{row.present}</td>
+                  <td className="px-5 py-4 font-bold text-red-700">{row.absent}</td>
+                  <td className="px-5 py-4"><AttendancePercent percentage={row.percentage} /></td>
+                  <td className="px-5 py-4">
+                    {row.percentage < 75 ? (
+                      <p className="max-w-sm text-sm font-bold text-red-700">
+                        Warning: {row.subject} attendance is {row.percentage}%. Minimum 75% required.
+                      </p>
+                    ) : (
+                      <span className="text-sm font-semibold text-emerald-700">On track</span>
+                    )}
                   </td>
                 </tr>
               ))}
-              {attendanceData.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="px-8 py-10 text-center text-slate-400 font-bold italic">
-                    No academic records found for current term.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+          {!subjectRows.length && <EmptyState />}
         </div>
-      </div>
+
+        <div className="grid gap-3 md:hidden">
+          {subjectRows.map((row) => (
+            <div key={row.subject} className="mobile-card">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="min-w-0 flex-1 font-black text-slate-950">{row.subject}</h3>
+                <AttendancePercent percentage={row.percentage} compact />
+              </div>
+              {row.percentage < 75 && (
+                <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+                  Warning: {row.subject} attendance is {row.percentage}%. Minimum 75% required.
+                </p>
+              )}
+            </div>
+          ))}
+          {!subjectRows.length && <EmptyState />}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-3">
+          <CalendarDays className="text-primary" size={25} />
+          <h2 className="text-xl font-black text-slate-950">Monthly Attendance Calendar</h2>
+        </div>
+        <div className="grid grid-cols-7 gap-2 text-center">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+            <div key={day} className="text-xs font-black uppercase tracking-wide text-slate-400">{day}</div>
+          ))}
+          {calendarDays.map((day) => (
+            <div key={day.key} className={`min-h-[58px] rounded-lg border p-2 text-left ${day.inMonth ? 'border-slate-200 bg-slate-50' : 'border-transparent bg-transparent'}`}>
+              {day.inMonth && (
+                <>
+                  <p className="text-xs font-black text-slate-700">{day.date.getDate()}</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {day.statuses.map((status) => (
+                      <span key={status} className={`h-2.5 w-2.5 rounded-full ${status === 'Present' ? 'bg-emerald-500' : status === 'Late' ? 'bg-amber-500' : 'bg-red-500'}`} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold text-slate-600">
+          <Legend color="bg-emerald-500" label="Present" />
+          <Legend color="bg-red-500" label="Absent" />
+          <Legend color="bg-amber-500" label="Late" />
+        </div>
+      </section>
     </div>
   );
 };
 
-const SummaryCard = ({ icon, label, value, color, bg }) => (
-  <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm group hover:border-primary/20 transition-all duration-300">
-    <div className="flex justify-between items-start">
-      <div className={`${bg} ${color} p-3 rounded-xl transition-transform group-hover:scale-110 duration-500`}>
-        {React.cloneElement(icon, { size: 20 })}
+const AttendanceBanner = ({ hasAttendance, hasWarnings, warningRows }) => {
+  if (!hasAttendance) {
+    return (
+      <div className="sticky top-16 z-30 rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm font-bold text-primary md:static">
+        No attendance records are available yet.
       </div>
-      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Term</span>
+    );
+  }
+
+  if (hasWarnings) {
+    return (
+      <div className="sticky top-16 z-30 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-sm md:static">
+        <AlertTriangle size={20} className="mt-0.5 shrink-0" />
+        <span>{warningRows.length} subject{warningRows.length > 1 ? 's are' : ' is'} below 75% attendance. Review the warning rows.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sticky top-16 z-30 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700 shadow-sm md:static">
+      Great! Your attendance is on track.
     </div>
-    <div className="mt-6 space-y-1">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{label}</p>
-      <h3 className="text-3xl font-black text-slate-900 leading-tight">{value}</h3>
-    </div>
+  );
+};
+
+const ProfileMeta = ({ label, value }) => (
+  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <p className="text-xs font-black uppercase tracking-wide text-slate-400">{label}</p>
+    <p className="mt-1 text-sm font-bold text-slate-800">{value}</p>
+  </div>
+);
+
+const AttendancePercent = ({ percentage, compact = false }) => {
+  const tone = attendanceTone(percentage);
+  const label = tone === 'green' ? 'Green' : tone === 'yellow' ? 'Yellow' : 'Red';
+
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black ${percentageClass(percentage)}`}>
+      <span className={`h-2.5 w-2.5 rounded-full ${tone === 'green' ? 'bg-emerald-500' : tone === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`} />
+      {percentage}% {!compact && <span className="hidden lg:inline">{label}</span>}
+    </span>
+  );
+};
+
+const buildMonthCalendar = (records) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const first = new Date(year, month, 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+
+  const statusMap = records.reduce((map, record) => {
+    const key = toDateKey(record.date);
+    if (!key) return map;
+    map[key] = [...(map[key] || []), record.status];
+    return map;
+  }, {});
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const key = toDateKey(date);
+    const statuses = [...new Set(statusMap[key] || [])];
+    return {
+      key,
+      date,
+      inMonth: date.getMonth() === month,
+      statuses,
+    };
+  });
+};
+
+const Legend = ({ color, label }) => (
+  <span className="inline-flex items-center gap-2">
+    <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
+    {label}
+  </span>
+);
+
+const EmptyState = () => (
+  <div className="rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-400">
+    No attendance records found.
   </div>
 );
 

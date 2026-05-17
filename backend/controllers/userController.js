@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Assignment = require('../models/Assignment');
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -7,7 +8,17 @@ exports.getUsers = async (req, res) => {
   try {
     let query = {};
     if (req.user.role === 'teacher') {
-      query = { role: 'student' };
+      const assignments = await Assignment.find({ facultyId: req.user.id });
+      if (!assignments.length) {
+        return res.status(200).json({ success: true, count: 0, data: [] });
+      }
+      query = {
+        role: 'student',
+        $or: assignments.map((assignment) => ({
+          semester: assignment.semester,
+          section: assignment.section
+        }))
+      };
     }
     const users = await User.find(query);
     res.status(200).json({ success: true, count: users.length, data: users });

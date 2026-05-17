@@ -123,12 +123,38 @@ exports.getSecurityQuestion = async (req, res) => {
     if (!email) return res.status(400).json({ message: 'Please provide an email' });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user || user.role !== 'teacher') return res.status(404).json({ message: 'No account found with this email' });
 
     res.status(200).json({
       success: true,
-      question: user.securityQuestion || 'What is your favorite color?'
+      question: user.securityQuestion || 'What is your favorite color?',
+      role: user.role
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Verify faculty security answer
+// @route   POST /api/auth/verify-security-answer
+// @access  Public
+exports.verifySecurityAnswer = async (req, res) => {
+  try {
+    const { email, answer } = req.body;
+    if (!email || !answer) {
+      return res.status(400).json({ message: 'Please provide email and answer' });
+    }
+
+    const user = await User.findOne({ email }).select('+securityAnswer');
+    if (!user || user.role !== 'teacher') {
+      return res.status(404).json({ message: 'No account found with this email' });
+    }
+
+    if (user.securityAnswer.toLowerCase().trim() !== answer.toLowerCase().trim()) {
+      return res.status(400).json({ message: 'Incorrect answer. Please try again.' });
+    }
+
+    res.status(200).json({ success: true, message: 'Security answer verified' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -144,8 +170,12 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Please provide email, answer, and new password' });
     }
 
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
     const user = await User.findOne({ email }).select('+password +securityAnswer');
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user || user.role !== 'teacher') return res.status(404).json({ message: 'No account found with this email' });
 
     // Simple case-insensitive comparison
     if (user.securityAnswer.toLowerCase().trim() !== answer.toLowerCase().trim()) {

@@ -14,6 +14,10 @@ const SubjectSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add a department']
   },
+  section: {
+    type: String,
+    default: 'A'
+  },
   semester: {
     type: Number,
     required: [true, 'Please add a semester']
