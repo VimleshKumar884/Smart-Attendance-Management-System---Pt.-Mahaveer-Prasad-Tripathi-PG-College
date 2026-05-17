@@ -1,14 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { CalendarDays, Home, LogOut, Menu, UserCircle, X, CalendarCheck2 } from 'lucide-react';
+import axios from 'axios';
+import { CalendarDays, Home, LogOut, Menu, UserCircle, X, CalendarCheck2, Bell } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { formatLongDate, INSTITUTION_NAME, SYSTEM_NAME, cx } from '../lib/helpers';
 
 const AdminLayout = ({ children }) => {
   const [isTabletMenuOpen, setIsTabletMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      axios.get('/notifications')
+        .then(res => {
+           const unread = (res.data.data || []).filter(n => !n.isRead).length;
+           setUnreadCount(unread);
+        })
+        .catch(err => console.error('Failed to load notifications', err));
+    }
+  }, [user]);
 
   const bottomItems = useMemo(() => {
     if (user?.role === 'admin') {
