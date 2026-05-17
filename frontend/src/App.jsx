@@ -21,6 +21,7 @@ import FacultyMyAttendance from './pages/FacultyMyAttendance';
 import FacultyProfile from './pages/FacultyProfile';
 import Notifications from './pages/Notifications';
 import StudentMarkAttendance from './pages/StudentMarkAttendance';
+import FaceRecognition from './pages/FaceRecognition';
 
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -96,6 +97,7 @@ const AppContent = () => {
               <Route path="dashboard" element={<StudentDashboard />} />
               <Route path="mark-attendance" element={<StudentMarkAttendance />} />
               <Route path="notifications" element={<Notifications />} />
+              <Route path="face-recognition" element={<FaceRecognition />} />
               <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
           </AdminLayout>

@@ -5,6 +5,9 @@ import { CalendarDays, Home, LogOut, Menu, UserCircle, X, CalendarCheck2, Bell }
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { formatLongDate, INSTITUTION_NAME, SYSTEM_NAME, cx } from '../lib/helpers';
+import ThemeToggle from '../components/ThemeToggle';
+import PageTransition from '../components/PageTransition';
+import { AnimatePresence } from 'framer-motion';
 
 const AdminLayout = ({ children }) => {
   const [isTabletMenuOpen, setIsTabletMenuOpen] = useState(false);
@@ -51,40 +54,43 @@ const AdminLayout = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex min-h-16 items-center justify-between gap-3 px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setIsTabletMenuOpen(true)}
-              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-50 md:flex lg:hidden"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-50 md:flex lg:hidden dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               aria-label="Open navigation"
             >
               <Menu size={22} />
             </button>
             <Link to="/" className="min-w-0">
-              <p className="truncate text-sm font-black uppercase text-slate-950 md:text-base">{INSTITUTION_NAME}</p>
+              <p className="truncate text-sm font-black uppercase text-slate-950 md:text-base dark:text-slate-100">{INSTITUTION_NAME}</p>
               <p className="text-xs font-bold text-primary">{SYSTEM_NAME}</p>
             </Link>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600 sm:flex">
+            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600 sm:flex dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
               <CalendarDays size={17} className="text-primary" />
               {formatLongDate()}
             </div>
+            
+            <ThemeToggle />
+
             <div className="hidden text-right md:block">
-              <p className="text-sm font-black text-slate-900">{user?.name || 'User'}</p>
+              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{user?.name || 'User'}</p>
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{user?.role === 'teacher' ? 'Faculty' : user?.role}</p>
             </div>
             
             <Link
               to={`/${user?.role === 'teacher' ? 'faculty' : user?.role}/notifications`}
-              className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+              className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <Bell size={20} />
-              {unreadCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+              {unreadCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-900">{unreadCount > 9 ? '9+' : unreadCount}</span>}
             </Link>
 
             <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-indigo-600 text-base font-black uppercase text-white">
@@ -93,7 +99,7 @@ const AdminLayout = ({ children }) => {
             <button
               type="button"
               onClick={handleLogout}
-              className="hidden h-11 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-700 md:flex"
+              className="hidden h-11 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-700 md:flex dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
             >
               <LogOut size={17} />
               Logout
@@ -108,7 +114,11 @@ const AdminLayout = ({ children }) => {
         </div>
 
         <main className="w-full min-w-0 flex-1 px-4 pb-24 pt-5 md:px-6 md:pb-8 lg:px-8">
-          {children}
+          <AnimatePresence mode="wait">
+            <PageTransition key={window.location.pathname}>
+              {children}
+            </PageTransition>
+          </AnimatePresence>
         </main>
       </div>
 
@@ -123,14 +133,14 @@ const AdminLayout = ({ children }) => {
         <button
           type="button"
           onClick={() => setIsTabletMenuOpen(false)}
-          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-lg bg-white text-slate-700 shadow-lg"
+          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-lg bg-white text-slate-700 shadow-lg dark:bg-slate-800 dark:text-slate-200"
           aria-label="Close navigation"
         >
           <X size={22} />
         </button>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-slate-200 bg-white px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-slate-200 bg-white px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] md:hidden dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_-8px_24px_rgba(0,0,0,0.3)]">
         {bottomItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -139,7 +149,7 @@ const AdminLayout = ({ children }) => {
               to={item.path}
               className={({ isActive }) => cx(
                 'flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-bold transition',
-                isActive ? 'bg-blue-50 text-primary' : 'text-slate-500',
+                isActive ? 'bg-blue-50 text-primary dark:bg-primary/10' : 'text-slate-500 dark:text-slate-400',
               )}
             >
               <Icon size={18} />
@@ -150,7 +160,7 @@ const AdminLayout = ({ children }) => {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-bold text-slate-500"
+          className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-bold text-slate-500 dark:text-slate-400"
         >
           <LogOut size={18} />
           Logout

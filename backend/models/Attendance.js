@@ -16,6 +16,11 @@ const AttendanceSchema = new mongoose.Schema({
     ref: 'Subject',
     required: true
   },
+  sessionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Session',
+    default: null // Can be null for manual attendance
+  },
   section: {
     type: String,
     required: true
@@ -23,10 +28,6 @@ const AttendanceSchema = new mongoose.Schema({
   date: {
     type: Date,
     default: Date.now,
-    required: true
-  },
-  lecture_no: {
-    type: Number,
     required: true
   },
   status: {
@@ -45,7 +46,8 @@ const AttendanceSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Prevent duplicate attendance for same student, subject, date, and lecture
-AttendanceSchema.index({ studentId: 1, subjectId: 1, date: 1, lecture_no: 1 }, { unique: true });
+// Prevent duplicate attendance for same student, subject, and date if no sessionId, else prevent duplicate per session.
+// A more generic index for duplicate prevention per session:
+AttendanceSchema.index({ studentId: 1, sessionId: 1 }, { unique: true, partialFilterExpression: { sessionId: { $type: "objectId" } } });
 
 module.exports = mongoose.model('Attendance', AttendanceSchema);

@@ -1,138 +1,191 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { KeyRound, Smartphone, Loader2, CheckCircle2 } from 'lucide-react';
+import { Smartphone, Loader2, CheckCircle2, Scan, AlertCircle, MapPin } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { getFriendlyError } from '../lib/helpers';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const StudentMarkAttendance = () => {
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [location, setLocation] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const scannerRef = useRef(null);
   const { showToast } = useToast();
 
-  const handleOtpChange = (index, value) => {
-    if (isNaN(value)) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
-    setOtp(newOtp);
-
-    // Auto focus next input
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-${index + 1}`);
-      if (nextInput) nextInput.focus();
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+        (err) => {
+          console.error(err);
+          setError('Location access is required to mark attendance.');
+        }
+      );
+    } else {
+      setError('Geolocation is not supported by your browser.');
     }
-  };
 
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-${index - 1}`);
-      if (prevInput) prevInput.focus();
-    }
-  };
-
-  const handlePaste = (e) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData('text/plain').replace(/\D/g, '').slice(0, 6);
-    if (pastedData) {
-      const newOtp = [...otp];
-      for (let i = 0; i < pastedData.length; i++) {
-        newOtp[i] = pastedData[i];
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
       }
-      setOtp(newOtp);
-      // Focus the next empty input or the last one
-      const focusIndex = pastedData.length < 6 ? pastedData.length : 5;
-      const targetInput = document.getElementById(`otp-${focusIndex}`);
-      if (targetInput) targetInput.focus();
-    }
-  };
+    };
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const otpCode = otp.join('');
-    if (otpCode.length !== 6) {
-      showToast('Please enter a valid 6-digit OTP', 'error');
+  const startScanner = () => {
+    if (!location) {
+      showToast('Waiting for GPS location...', 'error');
       return;
     }
-
-    setLoading(true);
+    setScanning(true);
     setSuccess(false);
+    setError('');
+
+    setTimeout(() => {
+      const scanner = new Html5QrcodeScanner("reader", { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 },
+        rememberLastUsedCamera: true
+      }, false);
+
+      scanner.render(onScanSuccess, onScanFailure);
+      scannerRef.current = scanner;
+    }, 100);
+  };
+
+  const onScanSuccess = async (decodedText) => {
+    if (scannerRef.current) {
+      await scannerRef.current.clear();
+      setScanning(false);
+    }
+    handleMarkAttendance(decodedText);
+  };
+
+  const onScanFailure = (error) => {
+    // Console only for high volume debugging
+    // console.warn(`QR scan error: ${error}`);
+  };
+
+  const handleMarkAttendance = async (sessionId) => {
+    setLoading(true);
     try {
-      await axios.post('/attendance/otp/verify', { otpCode });
+      await axios.post('/sessions/scan', {
+        sessionId,
+        latitude: location.latitude,
+        longitude: location.longitude
+      });
       setSuccess(true);
       showToast('✅ Attendance marked successfully!', 'success');
-      setOtp(['', '', '', '', '', '']);
     } catch (err) {
-      showToast(getFriendlyError(err, 'Failed to mark attendance'), 'error');
+      const msg = getFriendlyError(err, 'Failed to mark attendance');
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      <div>
-        <h1 className="flex items-center gap-3 text-2xl font-black text-slate-950 md:text-3xl">
-          <Smartphone className="text-primary" size={30} />
-          Mark My Attendance
+    <div className="space-y-6 max-w-2xl mx-auto pb-10">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="flex items-center gap-3 text-2xl font-black text-slate-950 md:text-3xl dark:text-slate-100">
+          <Scan className="text-primary" size={30} />
+          Scan QR Attendance
         </h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">Enter the 6-digit OTP displayed by your faculty.</p>
-      </div>
+        <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Scan the QR code displayed by your teacher to mark attendance.</p>
+      </motion.div>
 
-      {success && (
-        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm animate-in slide-in-from-top-2">
-          <CheckCircle2 className="text-emerald-600 mt-0.5" size={24} />
-          <div>
-            <h3 className="text-base font-black text-emerald-800 uppercase tracking-wide">Success</h3>
-            <p className="mt-1 text-sm font-medium text-emerald-700">
-              You have been marked present. You can verify your updated status on the Dashboard.
-            </p>
+      <AnimatePresence>
+        {success && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center shadow-lg dark:bg-emerald-900/20 dark:border-emerald-800"
+          >
+            <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 dark:bg-emerald-900/40">
+               <CheckCircle2 size={48} />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-wide">Verified!</h3>
+              <p className="mt-2 text-sm font-bold text-emerald-700 dark:text-emerald-500">
+                Your attendance has been recorded successfully for this session.
+              </p>
+            </div>
+            <button onClick={() => setSuccess(false)} className="btn-primary bg-emerald-600 hover:bg-emerald-700">Done</button>
+          </motion.div>
+        )}
+
+        {error && !success && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-start gap-4 rounded-xl border border-rose-200 bg-rose-50 p-5 dark:bg-rose-900/20 dark:border-rose-800"
+          >
+            <AlertCircle className="text-rose-600 shrink-0" size={24} />
+            <div>
+               <h4 className="font-black text-rose-800 dark:text-rose-400">Scan Failed</h4>
+               <p className="text-sm font-semibold text-rose-700 dark:text-rose-500">{error}</p>
+               <button onClick={startScanner} className="mt-3 text-sm font-bold underline text-rose-800">Try Again</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!success && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+          <div className="bg-primary/5 border-b border-slate-100 p-8 flex flex-col items-center text-center dark:bg-primary/10 dark:border-slate-800">
+             {!scanning ? (
+                <>
+                  <div className="h-20 w-20 bg-white rounded-3xl flex items-center justify-center text-primary shadow-xl mb-6 dark:bg-slate-800">
+                    <Smartphone size={40} />
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100">Ready to Scan?</h2>
+                  <p className="text-sm font-medium text-slate-500 mt-2 max-w-sm">Ensure you are in the classroom and have granted location permissions.</p>
+                  
+                  <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-[11px] font-black uppercase text-slate-500 dark:bg-slate-800">
+                     <MapPin size={14} className={location ? "text-emerald-500" : "text-rose-500"}/>
+                     {location ? "Location Verified" : "Awaiting Location..."}
+                  </div>
+                </>
+             ) : (
+                <div className="w-full space-y-4">
+                   <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Scanning QR Code...</h2>
+                   <div id="reader" className="overflow-hidden rounded-xl border-4 border-primary"></div>
+                   <button onClick={() => { setScanning(false); scannerRef.current?.clear(); }} className="text-sm font-bold text-rose-600">Cancel Scan</button>
+                </div>
+             )}
           </div>
+          
+          {!scanning && (
+            <div className="p-8 flex flex-col items-center">
+               <button 
+                 onClick={startScanner}
+                 disabled={loading || !location}
+                 className="tap-target w-full sm:w-auto min-w-[240px] px-8 py-5 rounded-2xl bg-primary text-white font-black uppercase tracking-widest shadow-xl hover:bg-primary-dark transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+               >
+                 {loading ? <Loader2 className="animate-spin" size={24} /> : <Scan size={24} />}
+                 Open Scanner
+               </button>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="bg-indigo-50 border-b border-indigo-100 p-6 flex flex-col items-center text-center">
-           <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-indigo-600 shadow-sm mb-4">
-             <KeyRound size={32} />
-           </div>
-           <h2 className="text-xl font-black text-slate-900">Enter Attendance OTP</h2>
-           <p className="text-sm font-medium text-slate-600 mt-2 max-w-sm">The code is valid for 15 minutes from the time of generation.</p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-8 flex flex-col items-center">
-           <div className="flex gap-2 sm:gap-4 mb-8" onPaste={handlePaste}>
-             {otp.map((digit, index) => (
-               <input
-                 key={index}
-                 id={`otp-${index}`}
-                 type="text"
-                 inputMode="numeric"
-                 pattern="\d*"
-                 maxLength={1}
-                 value={digit}
-                 onChange={(e) => handleOtpChange(index, e.target.value)}
-                 onKeyDown={(e) => handleKeyDown(index, e)}
-                 className="w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-black text-slate-900 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none bg-slate-50 focus:bg-white"
-               />
-             ))}
-           </div>
-           
-           <button 
-             type="submit" 
-             disabled={loading || otp.join('').length !== 6}
-             className="tap-target w-full sm:w-auto min-w-[200px] px-8 py-4 rounded-xl bg-indigo-600 text-white font-black uppercase tracking-wide shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-           >
-             {loading ? <Loader2 className="animate-spin" size={20} /> : 'Mark Present'}
-           </button>
-        </form>
-      </div>
-
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm text-sm font-medium text-amber-800">
-         <strong className="font-black uppercase tracking-wide">Note:</strong> Make sure you are using the correct code for your section. Sharing or misusing OTPs will be recorded.
+      <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex gap-3 dark:bg-blue-900/10 dark:border-blue-900/30">
+         <AlertCircle size={20} className="text-primary shrink-0"/>
+         <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+            <strong>Proxy Protection:</strong> Our system verifies your physical presence in the room. Attempting to scan from outside or sharing sessions will result in an audit flag.
+         </p>
       </div>
     </div>
   );
 };
 
 export default StudentMarkAttendance;
+
