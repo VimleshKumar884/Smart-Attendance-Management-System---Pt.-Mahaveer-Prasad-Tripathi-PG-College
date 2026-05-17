@@ -1,16 +1,22 @@
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
+const BackdatedLog = require('../models/BackdatedLog');
+const AttendanceOtp = require('../models/AttendanceOtp');
+const crypto = require('crypto');
 
 // @desc    Mark attendance (Single or Bulk)
 // @route   POST /api/attendance
 // @access  Private/Teacher/Admin
 exports.markAttendance = async (req, res) => {
   try {
-    const { subjectId, section, lecture_no, records, date } = req.body;
-    // records is an array of { studentId, status }
+    const { subjectId, section, lecture_no, records, date, isBackdated, reason } = req.body;
     
     if (!subjectId || !section || !lecture_no || !records || records.length === 0) {
       return res.status(400).json({ message: 'Please provide subject, section, lecture number and attendance records' });
+    }
+
+    if (isBackdated && !reason) {
+      return res.status(400).json({ message: 'Reason is required for backdated attendance' });
     }
 
     const attendanceDate = date ? new Date(date) : new Date();
@@ -24,24 +30,33 @@ exports.markAttendance = async (req, res) => {
 
     const attendanceDocs = records.map(record => ({
       studentId: record.studentId,
-      // teacherId was in the old model, let's keep it or map it. Wait, the old model had teacherId? Let's check Attendance.js
-      // Yes, old model had teacherId. Let's just avoid breaking old code if not removed.
-      // But we removed teacherId from Subject, not Attendance. Actually Attendance.js didn't have teacherId removed.
-      // Oh wait, old Attendance.js had teacherId? Let me read it. No, my replaced Attendance.js has studentId, subjectId, section, date, lecture_no, status, remarks, markedAt. Let's not include teacherId if it's not there, but let's assume it was left in. Ah, I did not replace teacherId in Attendance.js, I only added section/lecture_no.
       teacherId: req.user.id,
       subjectId,
       section,
       lecture_no,
       date: attendanceDate,
       status: record.status,
+      isBackdated: isBackdated || false,
       markedAt: new Date()
     }));
 
     // This will fail if duplicate for same student, subject, date exists due to unique index
     const inserted = await Attendance.insertMany(attendanceDocs);
 
+    // If backdated, create a log for admin approval
+    if (isBackdated) {
+      await BackdatedLog.create({
+        facultyId: req.user.id,
+        subjectId,
+        section,
+        date: attendanceDate,
+        reason,
+        adminStatus: 'pending'
+      });
+    }
+
     // After marking attendance, recalculate student attendance percentage
-    // This could be optimized or moved to a background job
+    const Notification = require('../models/Notification');
     for (let record of records) {
       const studentId = record.studentId;
       const totalClasses = await Attendance.countDocuments({ studentId });
@@ -52,6 +67,26 @@ exports.markAttendance = async (req, res) => {
       const percentage = totalClasses > 0 ? (effectivePresent / totalClasses) * 100 : 0;
       
       await User.findByIdAndUpdate(studentId, { attendancePercentage: percentage });
+
+      // Notify if below 75%
+      if (percentage < 75 && totalClasses >= 5) {
+        // Debounce notifications (e.g., only one active warning at a time)
+        const recentWarning = await Notification.findOne({
+           userId: studentId,
+           type: 'alert',
+           message: { $regex: /attendance is low/i },
+           createdAt: { $gt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // within last 7 days
+        });
+
+        if (!recentWarning) {
+           await Notification.create({
+              userId: studentId,
+              userRole: 'student',
+              type: 'alert',
+              message: `Warning: Your overall attendance is low (${Math.round(percentage)}%). Please attend classes regularly to meet the 75% requirement.`
+           });
+        }
+      }
     }
 
     res.status(201).json({ success: true, count: inserted.length, data: inserted });
@@ -63,10 +98,131 @@ exports.markAttendance = async (req, res) => {
   }
 };
 
-// @desc    Update Attendance
-// @route   PUT /api/attendance/:id
-// @access  Private/Teacher/Admin
-exports.updateAttendance = async (req, res) => {
+// @desc    Generate OTP for attendance
+// @route   POST /api/attendance/otp/generate
+// @access  Private/Teacher
+exports.generateOtp = async (req, res) => {
+  try {
+    const { subjectId, section, date } = req.body;
+    if (!subjectId || !section || !date) {
+      return res.status(400).json({ message: 'Subject, section, and date are required' });
+    }
+
+    const attendanceDate = new Date(date);
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    // Deactivate any existing active OTP for this class today
+    await AttendanceOtp.updateMany({ subjectId, section, date: attendanceDate, isActive: true }, { isActive: false });
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins from now
+
+    const otp = await AttendanceOtp.create({
+      facultyId: req.user.id,
+      subjectId,
+      section,
+      date: attendanceDate,
+      otpCode,
+      expiresAt
+    });
+
+    res.status(201).json({ success: true, data: otp });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Cancel OTP
+// @route   POST /api/attendance/otp/cancel
+// @access  Private/Teacher
+exports.cancelOtp = async (req, res) => {
+  try {
+    const { otpId } = req.body;
+    const otp = await AttendanceOtp.findById(otpId);
+    if (!otp) return res.status(404).json({ message: 'OTP not found' });
+    if (otp.facultyId.toString() !== req.user.id && req.user.role !== 'admin') {
+       return res.status(403).json({ message: 'Not authorized' });
+    }
+    otp.isActive = false;
+    await otp.save();
+    res.status(200).json({ success: true, data: otp });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Verify OTP and mark student present
+// @route   POST /api/attendance/otp/verify
+// @access  Private/Student
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { otpCode } = req.body;
+    const studentId = req.user.id;
+
+    if (!otpCode) {
+      return res.status(400).json({ message: 'Please provide the OTP code' });
+    }
+
+    // Find active OTP matching the code
+    const otp = await AttendanceOtp.findOne({ 
+      otpCode, 
+      isActive: true,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!otp) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // Check if student belongs to the section the OTP was generated for
+    const student = await User.findById(studentId);
+    if (!student || student.section !== otp.section) {
+       return res.status(403).json({ message: 'You are not authorized to use this OTP for this class' });
+    }
+
+    // Check if already marked present
+    const existingAttendance = await Attendance.findOne({
+      studentId,
+      subjectId: otp.subjectId,
+      date: otp.date,
+      lecture_no: 1 // Assuming 1 for simplicity based on prompt
+    });
+
+    if (existingAttendance) {
+      if (existingAttendance.status === 'Present') {
+         return res.status(400).json({ message: 'You have already marked attendance for this session' });
+      } else {
+         // Update to present
+         existingAttendance.status = 'Present';
+         existingAttendance.markedAt = new Date();
+         await existingAttendance.save();
+      }
+    } else {
+      // Create new attendance record
+      await Attendance.create({
+        studentId,
+        teacherId: otp.facultyId,
+        subjectId: otp.subjectId,
+        section: otp.section,
+        lecture_no: 1,
+        date: otp.date,
+        status: 'Present',
+        markedAt: new Date()
+      });
+    }
+
+    // Log OTP usage
+    const OtpUsageLog = require('../models/OtpUsageLog');
+    await OtpUsageLog.create({
+      otpId: otp._id,
+      studentId
+    });
+
+    res.status(200).json({ success: true, message: 'Attendance marked successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
   try {
     const attendance = await Attendance.findById(req.params.id);
     if (!attendance) {

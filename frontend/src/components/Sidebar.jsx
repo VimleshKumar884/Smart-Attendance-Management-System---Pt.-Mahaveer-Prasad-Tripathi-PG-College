@@ -3,12 +3,16 @@ import {
   BarChart3,
   BookOpenCheck,
   CalendarCheck2,
+  CalendarDays,
   GraduationCap,
   Home,
   Settings,
   LibraryBig,
   UserRoundCheck,
+  UserCircle,
   Users,
+  Bell,
+  KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { INSTITUTION_NAME, SYSTEM_NAME, cx } from '../lib/helpers';
@@ -23,9 +27,11 @@ const navByRole = {
     { icon: Settings, label: 'Settings', path: '/admin/settings' },
   ],
   teacher: [
-    { icon: BookOpenCheck, label: 'My Subjects', path: '/faculty/subjects' },
+    { icon: BookOpenCheck, label: 'Dashboard Home', path: '/faculty/subjects' },
     { icon: CalendarCheck2, label: 'Mark Attendance', path: '/faculty/mark-attendance' },
     { icon: BarChart3, label: 'Attendance History', path: '/faculty/history' },
+    { icon: CalendarDays, label: 'My Attendance', path: '/faculty/my-attendance' },
+    { icon: UserCircle, label: 'My Profile', path: '/faculty/profile' },
   ],
   student: [
     { icon: Home, label: 'Home', path: '/student/dashboard' },

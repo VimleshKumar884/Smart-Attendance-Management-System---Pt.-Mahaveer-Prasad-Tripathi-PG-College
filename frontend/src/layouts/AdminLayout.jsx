@@ -65,7 +65,16 @@ const AdminLayout = ({ children }) => {
               <p className="text-sm font-black text-slate-900">{user?.name || 'User'}</p>
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{user?.role === 'teacher' ? 'Faculty' : user?.role}</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-base font-black uppercase text-white">
+            
+            <Link
+              to={`/${user?.role === 'teacher' ? 'faculty' : user?.role}/notifications`}
+              className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+            </Link>
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-indigo-600 text-base font-black uppercase text-white">
               {user?.name?.charAt(0) || 'U'}
             </div>
             <button

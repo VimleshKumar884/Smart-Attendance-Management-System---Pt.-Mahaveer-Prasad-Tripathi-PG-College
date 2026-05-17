@@ -6,20 +6,26 @@ const Assignment = require('../models/Assignment');
 // @access  Private/Admin/Teacher
 exports.getUsers = async (req, res) => {
   try {
-    let query = {};
+    let query = { ...req.query };
+    
+    // Remove fields that shouldn't be matched directly if any, like page/limit in future
+    
     if (req.user.role === 'teacher') {
       const assignments = await Assignment.find({ facultyId: req.user.id });
       if (!assignments.length) {
         return res.status(200).json({ success: true, count: 0, data: [] });
       }
-      query = {
-        role: 'student',
-        $or: assignments.map((assignment) => ({
+      
+      // If the teacher didn't provide specific filters, scope them to their assigned students
+      if (!query.department && !query.semester && !query.section) {
+        query.role = 'student';
+        query.$or = assignments.map((assignment) => ({
           semester: assignment.semester,
           section: assignment.section
-        }))
-      };
+        }));
+      }
     }
+    
     const users = await User.find(query);
     res.status(200).json({ success: true, count: users.length, data: users });
   } catch (error) {

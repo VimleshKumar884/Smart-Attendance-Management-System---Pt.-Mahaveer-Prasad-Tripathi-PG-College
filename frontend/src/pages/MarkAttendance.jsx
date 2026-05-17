@@ -1,176 +1,240 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { CheckCircle2, Clock, CalendarCheck2, LockKeyhole, Loader2, Save, Search, XCircle } from 'lucide-react';
+import { BookOpenCheck, CalendarCheck2, Loader2, Save, X, KeyRound, Smartphone } from 'lucide-react';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
-import { getFriendlyError, todayInputValue, toDateKey } from '../lib/helpers';
-
-const statuses = [
-  { value: 'Present', label: 'Present', icon: CheckCircle2, active: 'bg-emerald-600 text-white', idle: 'text-emerald-700 hover:bg-emerald-50' },
-  { value: 'Absent', label: 'Absent', icon: XCircle, active: 'bg-red-600 text-white', idle: 'text-red-700 hover:bg-red-50' },
-  { value: 'Late', label: 'Late', icon: Clock, active: 'bg-amber-500 text-white', idle: 'text-amber-700 hover:bg-amber-50' },
-];
+import { getFriendlyError, todayInputValue } from '../lib/helpers';
 
 const MarkAttendance = () => {
   const [assignments, setAssignments] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [attendance, setAttendance] = useState({});
-  const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
-  const [date, setDate] = useState(todayInputValue());
-  const [lectureNo, setLectureNo] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [studentsLoading, setStudentsLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  // Selection State
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  const [dateMode, setDateMode] = useState('today'); // 'today' | 'previous'
+  const [selectedDate, setSelectedDate] = useState(todayInputValue());
+  
+  // Student List State
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentsLoaded, setStudentsLoaded] = useState(false);
+  const [studentsError, setStudentsError] = useState('');
+  
+  // Attendance State: { [studentId]: 'Present' | 'Absent' | 'Late' }
+  const [attendanceState, setAttendanceState] = useState({});
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [isLocked, setIsLocked] = useState(false); // If already submitted
+
+  // OTP State
+  const [activeOtp, setActiveOtp] = useState(null);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const timerRef = useRef(null);
+
   const { showToast } = useToast();
 
-  const fetchInitialData = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [assignmentsRes, historyRes] = await Promise.all([
-        axios.get('/assignments'),
-        axios.get('/attendance'),
-      ]);
-      setAssignments(assignmentsRes.data.data || []);
-      setHistory(historyRes.data.data || []);
-    } catch (err) {
-      setError(getFriendlyError(err, 'Could not load attendance setup.'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchInitialData();
+    const fetchAssignments = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await axios.get('/assignments');
+        setAssignments(res.data.data || []);
+      } catch (err) {
+        setError(getFriendlyError(err, 'Could not load assigned subjects.'));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAssignments();
   }, []);
 
   const selectedAssignment = useMemo(() => {
-    return assignments.find((assignment) => assignment._id === selectedAssignmentId);
-  }, [assignments, selectedAssignmentId]);
+    return assignments.find(a => a.subjectId?._id === selectedSubjectId);
+  }, [assignments, selectedSubjectId]);
 
-  const existingRecords = useMemo(() => {
-    if (!selectedAssignment) return [];
-    const subjectId = selectedAssignment.subjectId?._id || selectedAssignment.subjectId;
-    return history.filter((record) => {
-      const recordSubjectId = record.subjectId?._id || record.subjectId;
-      return recordSubjectId === subjectId
-        && record.section === selectedAssignment.section
-        && Number(record.lecture_no) === Number(lectureNo)
-        && toDateKey(record.date) === date;
-    });
-  }, [date, history, lectureNo, selectedAssignment]);
+  const isBackdated = useMemo(() => {
+    return selectedDate < todayInputValue();
+  }, [selectedDate]);
 
-  const isLocked = existingRecords.length > 0;
-
-  useEffect(() => {
-    const fetchStudents = async () => {
-      if (!selectedAssignment) {
-        setStudents([]);
-        setAttendance({});
-        return;
-      }
-
-      setStudentsLoading(true);
-      try {
-        const res = await axios.get('/users');
-        const list = (res.data.data || []).filter((user) => user.role === 'student'
-          && user.section === selectedAssignment.section
-          && Number(user.semester) === Number(selectedAssignment.semester));
-        setStudents(list);
-      } catch (err) {
-        showToast(getFriendlyError(err, 'Could not load students for this class.'), 'error');
-      } finally {
-        setStudentsLoading(false);
-      }
-    };
-
-    fetchStudents();
-  }, [selectedAssignment, showToast]);
-
-  useEffect(() => {
-    if (!selectedAssignment) return;
-    if (isLocked) {
-      const lockedMap = {};
-      existingRecords.forEach((record) => {
-        const studentId = record.studentId?._id || record.studentId;
-        lockedMap[studentId] = record.status;
-      });
-      setAttendance(lockedMap);
-      return;
-    }
-
-    setAttendance((current) => {
-      const initial = {};
-      students.forEach((student) => {
-        initial[student._id] = current[student._id] || 'Absent';
-      });
-      return initial;
-    });
-  }, [existingRecords, isLocked, selectedAssignment, students]);
-
-  const filteredStudents = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return students;
-    return students.filter((student) => student.name?.toLowerCase().includes(term) || student.rollNumber?.toLowerCase().includes(term));
-  }, [searchTerm, students]);
-
-  const handleSubmit = async () => {
+  const loadStudents = async () => {
     if (!selectedAssignment) {
       showToast('Please select a subject first.', 'error');
       return;
     }
-    if (!date) {
-      showToast('Please select a date.', 'error');
+    setLoadingStudents(true);
+    setStudentsError('');
+    setStudentsLoaded(false);
+    setIsLocked(false);
+    setReason('');
+    
+    try {
+      // 1. Fetch Students
+      const { department, semester } = selectedAssignment.subjectId;
+      const section = selectedAssignment.section;
+      const res = await axios.get(`/users?role=student&department=${encodeURIComponent(department)}&semester=${semester}&section=${section}`);
+      const fetchedStudents = res.data.data || [];
+      
+      // Sort by roll number
+      fetchedStudents.sort((a, b) => (a.rollNumber || '').localeCompare(b.rollNumber || ''));
+      setStudents(fetchedStudents);
+
+      // Default state: Absent
+      const initialState = {};
+      fetchedStudents.forEach(student => {
+         initialState[student._id] = 'Absent';
+      });
+      setAttendanceState(initialState);
+      setStudentsLoaded(true);
+
+      // 2. Check if attendance is already submitted for this date
+      const attendanceRes = await axios.get('/attendance');
+      const allAttendance = attendanceRes.data.data || [];
+      const submittedForThisLecture = allAttendance.filter(r => 
+         r.subjectId?._id === selectedSubjectId && 
+         new Date(r.date).toISOString().split('T')[0] === selectedDate
+      );
+      
+      if (submittedForThisLecture.length > 0) {
+         setIsLocked(true);
+         const lockedState = {};
+         submittedForThisLecture.forEach(r => {
+            lockedState[r.studentId?._id || r.studentId] = r.status;
+         });
+         setAttendanceState(lockedState);
+      }
+
+    } catch (err) {
+      setStudentsError(getFriendlyError(err, 'Failed to fetch students.'));
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const handleStatusChange = (studentId, status) => {
+    if (isLocked) return;
+    setAttendanceState(prev => ({ ...prev, [studentId]: status }));
+  };
+
+  const markAll = (status) => {
+    if (isLocked) return;
+    const newState = {};
+    students.forEach(student => {
+      newState[student._id] = status;
+    });
+    setAttendanceState(newState);
+  };
+
+  const submitAttendance = async () => {
+    if (isBackdated && !reason.trim()) {
+      showToast('Reason is required for backdated attendance', 'error');
       return;
     }
-    if (date > todayInputValue()) {
-      showToast('Future dates are not allowed.', 'error');
-      return;
-    }
-    if (!lectureNo) {
-      showToast('Please enter lecture number.', 'error');
-      return;
-    }
-    if (isLocked) {
-      showToast('This attendance is already submitted and locked.', 'error');
-      return;
-    }
-    if (!students.length) {
-      showToast('No students found for this class.', 'error');
-      return;
-    }
+    
+    const countPresent = Object.values(attendanceState).filter(s => s === 'Present' || s === 'Late').length;
+    const total = students.length;
+    const confirmMessage = `Submitting for ${total} students (${countPresent} present/late) for ${selectedAssignment.subjectId.subjectName} on ${new Date(selectedDate).toLocaleDateString('en-GB')}. Cannot edit later. Confirm?`;
+    
+    if (!window.confirm(confirmMessage)) return;
 
     setSubmitting(true);
     try {
-      const subjectId = selectedAssignment.subjectId?._id || selectedAssignment.subjectId;
-      const records = students.map((student) => ({
-        studentId: student._id,
-        status: attendance[student._id] || 'Absent',
+      const records = Object.entries(attendanceState).map(([studentId, status]) => ({
+        studentId,
+        status
       }));
 
-      await axios.post('/attendance', {
-        subjectId,
-        subject_id: subjectId,
+      const payload = {
+        subjectId: selectedSubjectId,
         section: selectedAssignment.section,
-        lecture_no: Number(lectureNo),
-        date,
+        lecture_no: 1, // hardcoded for simplicity as requested
+        date: selectedDate,
         records,
-      });
+        isBackdated,
+        reason: isBackdated ? reason.trim() : undefined
+      };
 
-      showToast('Attendance submitted successfully.', 'success');
-      await fetchInitialData();
+      await axios.post('/attendance', payload);
+      
+      showToast(`✅ Attendance submitted for ${total} students`, 'success');
+      setIsLocked(true);
+      if (activeOtp) {
+         await handleCancelOtp();
+      }
     } catch (err) {
-      showToast(getFriendlyError(err, 'Could not submit attendance.'), 'error');
+      showToast(getFriendlyError(err, 'Failed to submit attendance'), 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <Spinner label="Loading attendance workflow..." />;
+  const handleGenerateOtp = async () => {
+    try {
+      const res = await axios.post('/attendance/otp/generate', {
+        subjectId: selectedSubjectId,
+        section: selectedAssignment.section,
+        date: selectedDate
+      });
+      const otpData = res.data.data;
+      setActiveOtp(otpData);
+      
+      const expiry = new Date(otpData.expiresAt).getTime();
+      const startTimer = () => {
+         const now = new Date().getTime();
+         const left = Math.floor((expiry - now) / 1000);
+         if (left <= 0) {
+            clearInterval(timerRef.current);
+            setActiveOtp(null);
+            setOtpTimer(0);
+         } else {
+            setOtpTimer(left);
+         }
+      };
+      startTimer();
+      timerRef.current = setInterval(startTimer, 1000);
+      showToast('OTP Generated Successfully', 'success');
+    } catch (err) {
+      showToast(getFriendlyError(err, 'Failed to generate OTP'), 'error');
+    }
+  };
+
+  const handleCancelOtp = async () => {
+    if (!activeOtp) return;
+    try {
+      await axios.post('/attendance/otp/cancel', { otpId: activeOtp._id });
+      clearInterval(timerRef.current);
+      setActiveOtp(null);
+      setOtpTimer(0);
+      showToast('OTP Cancelled', 'success');
+    } catch (err) {
+      showToast(getFriendlyError(err, 'Failed to cancel OTP'), 'error');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const counts = useMemo(() => {
+    let p = 0, a = 0, l = 0;
+    Object.values(attendanceState).forEach(status => {
+      if (status === 'Present') p++;
+      else if (status === 'Absent') a++;
+      else if (status === 'Late') l++;
+    });
+    return { present: p, absent: a, late: l };
+  }, [attendanceState]);
+
+  if (loading) return <Spinner label="Loading subjects..." />;
+
+  const todayStr = todayInputValue();
+  const maxPrevDate = new Date();
+  maxPrevDate.setDate(maxPrevDate.getDate() - 7);
+  const minDateStr = maxPrevDate.toISOString().split('T')[0];
 
   return (
     <div className="space-y-6">
@@ -179,150 +243,232 @@ const MarkAttendance = () => {
           <CalendarCheck2 className="text-primary" size={30} />
           Mark Attendance
         </h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">Select subject and date, then mark each student as present, absent, or late.</p>
+        <p className="mt-1 text-sm font-semibold text-slate-500">Select subject and date to mark student attendance.</p>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-[1fr_180px_150px]">
-          <div className="space-y-2">
-            <label htmlFor="assignment" className="text-sm font-bold text-slate-700">Subject</label>
-            <select
-              id="assignment"
-              value={selectedAssignmentId}
-              onChange={(event) => setSelectedAssignmentId(event.target.value)}
-              className="input-field min-h-11"
-            >
-              <option value="">Select subject</option>
-              {assignments.map((assignment) => (
-                <option key={assignment._id} value={assignment._id}>
-                  {assignment.subjectId?.subjectName || 'Subject'} · Sem {assignment.semester} · Section {assignment.section}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="date" className="text-sm font-bold text-slate-700">Date</label>
-            <input id="date" type="date" value={date} max={todayInputValue()} onChange={(event) => setDate(event.target.value)} className="input-field min-h-11" />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="lecture" className="text-sm font-bold text-slate-700">Lecture No.</label>
-            <input id="lecture" type="number" min="1" value={lectureNo} onChange={(event) => setLectureNo(event.target.value)} className="input-field min-h-11" />
-          </div>
-        </div>
-
-        {selectedAssignment && (
-          <div className={`mt-4 flex items-start gap-3 rounded-lg border p-4 text-sm font-semibold ${
-            isLocked ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-100 bg-blue-50 text-primary'
-          }`}>
-            {isLocked ? <LockKeyhole size={20} className="mt-0.5 shrink-0" /> : <CalendarCheck2 size={20} className="mt-0.5 shrink-0" />}
-            {isLocked
-              ? 'Attendance for this subject, date, and lecture is locked because it has already been submitted.'
-              : 'Student list will load automatically for the selected section and semester.'}
-          </div>
-        )}
-      </section>
-
-      {selectedAssignment && (
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-black text-slate-950">Students ({students.length})</h2>
-              <p className="text-sm font-semibold text-slate-500">Default status is Absent. Mark students actively before submitting.</p>
-            </div>
-            <div className="relative w-full md:max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search student"
-                className="input-field min-h-11 pl-10"
-              />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            disabled={isLocked || !students.length}
-            onClick={() => {
-              const allPresent = {};
-              students.forEach((student) => {
-                allPresent[student._id] = 'Present';
-              });
-              setAttendance(allPresent);
-            }}
-            className="tap-target inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <CheckCircle2 size={18} />
-            Mark All Present
-          </button>
-
-          {studentsLoading ? (
-            <Spinner label="Loading students..." />
-          ) : filteredStudents.length ? (
-            <div className="grid gap-3 lg:grid-cols-2">
-              {filteredStudents.map((student) => (
-                <div key={student._id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <h3 className="truncate font-black text-slate-950">{student.name}</h3>
-                      <p className="text-sm font-semibold text-slate-500">{student.rollNumber || 'N/A'}</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {statuses.map((status) => (
-                        <StatusButton
-                          key={status.value}
-                          status={status}
-                          active={attendance[student._id] === status.value}
-                          disabled={isLocked}
-                          onClick={() => setAttendance((current) => ({ ...current, [student._id]: status.value }))}
-                        />
-                      ))}
-                    </div>
-                  </div>
+      {/* Step 1: Selection */}
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-[1fr_200px_160px]">
+           <div className="space-y-2">
+             <label className="text-sm font-bold text-slate-700">Select Subject</label>
+             <select 
+               value={selectedSubjectId} 
+               onChange={(e) => setSelectedSubjectId(e.target.value)} 
+               className="input-field min-h-11"
+               disabled={isLocked || activeOtp !== null}
+             >
+               <option value="">-- Choose Subject --</option>
+               {assignments.map(a => (
+                 <option key={a._id} value={a.subjectId?._id}>
+                   {a.subjectId?.subjectName} ({a.subjectId?.subjectCode}) - Section {a.section}
+                 </option>
+               ))}
+             </select>
+           </div>
+           
+           <div className="space-y-2">
+             <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-slate-700">Date Mode</label>
+                <div className="flex gap-2">
+                   <button 
+                     type="button" 
+                     onClick={() => { setDateMode('today'); setSelectedDate(todayStr); }}
+                     className={`text-xs font-bold px-2 py-1 rounded ${dateMode === 'today' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}
+                     disabled={isLocked || activeOtp !== null}
+                   >
+                     Today
+                   </button>
+                   <button 
+                     type="button" 
+                     onClick={() => setDateMode('previous')}
+                     className={`text-xs font-bold px-2 py-1 rounded ${dateMode === 'previous' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}
+                     disabled={isLocked || activeOtp !== null}
+                   >
+                     Previous
+                   </button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-400">
-              No students found for this class.
+             </div>
+             <input 
+               type="date" 
+               value={selectedDate} 
+               onChange={(e) => setSelectedDate(e.target.value)} 
+               min={dateMode === 'previous' ? minDateStr : todayStr}
+               max={todayStr}
+               disabled={dateMode === 'today' || isLocked || activeOtp !== null}
+               className="input-field min-h-11"
+             />
+           </div>
+
+           <div className="space-y-2 flex flex-col justify-end">
+             <button 
+               onClick={loadStudents}
+               disabled={!selectedSubjectId || loadingStudents || activeOtp !== null}
+               className="tap-target w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+             >
+               {loadingStudents ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Load Students'}
+             </button>
+           </div>
+        </div>
+      </div>
+
+      {studentsError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 flex justify-between items-center">
+          <span>{studentsError}</span>
+          <button onClick={loadStudents} className="px-3 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700">Retry</button>
+        </div>
+      )}
+
+      {/* Step 3 & 4: Marking UI */}
+      {studentsLoaded && (
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden animate-in fade-in">
+          
+          {/* Header Action Bar */}
+          <div className="border-b border-slate-200 bg-slate-50 p-4 sticky top-[64px] z-10 shadow-sm flex flex-col md:flex-row gap-4 md:items-center justify-between">
+             <div className="flex flex-wrap gap-2 items-center">
+                {!isLocked && (
+                  <>
+                    <button onClick={() => markAll('Present')} className="tap-target px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-sm font-bold border border-emerald-200 hover:bg-emerald-200">✅ Mark All Present</button>
+                    <button onClick={() => markAll('Absent')} className="tap-target px-3 py-1.5 rounded-lg bg-rose-100 text-rose-800 text-sm font-bold border border-rose-200 hover:bg-rose-200">❌ Mark All Absent</button>
+                    <button onClick={() => markAll('Absent')} className="tap-target px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-300">🔄 Reset</button>
+                  </>
+                )}
+             </div>
+             <div className="flex gap-4 items-center bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm text-sm font-bold">
+               <span className="text-emerald-600">Present: {counts.present}</span>
+               <span className="text-rose-600">Absent: {counts.absent}</span>
+               <span className="text-amber-600">Late: {counts.late}</span>
+             </div>
+          </div>
+
+          {/* Locked State Banner */}
+          {isLocked && (
+            <div className="bg-amber-50 p-4 border-b border-amber-200 text-amber-800 font-bold flex items-center justify-center gap-2">
+              <span>🔒 Attendance already submitted for {selectedAssignment?.subjectId?.subjectName} on {new Date(selectedDate).toLocaleDateString('en-GB')}</span>
             </div>
           )}
 
-          <div className="sticky bottom-20 z-20 flex justify-center md:bottom-6">
-            <button
-              type="button"
-              disabled={submitting || isLocked || !students.length}
-              onClick={handleSubmit}
-              className="tap-target inline-flex w-full max-w-md items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLocked ? <LockKeyhole size={19} /> : submitting ? <Loader2 className="animate-spin" size={19} /> : <Save size={19} />}
-              {isLocked ? 'Attendance Locked' : 'Submit Attendance'}
-            </button>
-          </div>
-        </section>
-      )}
-    </div>
-  );
-};
+          {/* OTP Section (Only if today and not locked) */}
+          {!isLocked && !isBackdated && (
+            <div className="p-4 border-b border-slate-200 bg-blue-50/50 flex flex-col md:flex-row items-center gap-4 justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="bg-blue-100 p-2 rounded-lg text-primary"><Smartphone size={24}/></div>
+                 <div>
+                    <h3 className="font-black text-slate-900">Student Self-Marking (OTP)</h3>
+                    <p className="text-sm font-medium text-slate-600">Generate a code for students to mark themselves present.</p>
+                 </div>
+              </div>
+              
+              {!activeOtp ? (
+                <button onClick={handleGenerateOtp} className="tap-target px-4 py-2.5 rounded-lg bg-primary text-white font-bold text-sm shadow flex items-center gap-2 hover:bg-primary-dark">
+                  <KeyRound size={18}/> Generate Attendance OTP
+                </button>
+              ) : (
+                <div className="flex items-center gap-4 bg-white px-4 py-3 rounded-xl border border-blue-200 shadow-md">
+                   <div className="text-center">
+                     <p className="text-xs font-black uppercase text-slate-500 tracking-wider">Write this on board</p>
+                     <p className="text-3xl font-black tracking-[0.2em] text-primary">{activeOtp.otpCode}</p>
+                   </div>
+                   <div className="h-12 w-px bg-slate-200 mx-2"></div>
+                   <div className="text-center">
+                     <p className="text-xs font-black uppercase text-slate-500">Expires In</p>
+                     <p className={`text-xl font-bold ${otpTimer < 60 ? 'text-rose-600' : 'text-slate-800'}`}>
+                        {Math.floor(otpTimer / 60).toString().padStart(2, '0')}:{(otpTimer % 60).toString().padStart(2, '0')}
+                     </p>
+                   </div>
+                   <button onClick={handleCancelOtp} className="ml-2 tap-target h-10 w-10 flex items-center justify-center rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200">
+                     <X size={20}/>
+                   </button>
+                </div>
+              )}
+            </div>
+          )}
 
-const StatusButton = ({ status, active, disabled, onClick }) => {
-  const Icon = status.icon;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      title={status.label}
-      className={`tap-target flex min-w-[64px] items-center justify-center gap-1 rounded-lg border px-2 text-xs font-black transition disabled:cursor-not-allowed ${
-        active ? `${status.active} border-transparent` : `border-slate-200 bg-white ${status.idle}`
-      }`}
-    >
-      <Icon size={16} />
-      <span className="hidden min-[420px]:inline">{status.label}</span>
-    </button>
+          {/* Student List */}
+          <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse min-w-[600px]">
+                <thead className="bg-slate-50 border-b border-slate-200 text-xs font-black uppercase text-slate-500 tracking-wider">
+                   <tr>
+                      <th className="px-4 py-3 w-16 text-center">Sr. No</th>
+                      <th className="px-4 py-3">Roll No</th>
+                      <th className="px-4 py-3">Student Name</th>
+                      <th className="px-4 py-3 text-center">Mark Status</th>
+                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                   {students.map((student, idx) => {
+                      const status = attendanceState[student._id];
+                      return (
+                        <tr key={student._id} className="hover:bg-slate-50 transition-colors">
+                           <td className="px-4 py-4 text-center font-bold text-slate-400">{idx + 1}</td>
+                           <td className="px-4 py-4 font-bold text-slate-700">{student.rollNumber || 'N/A'}</td>
+                           <td className="px-4 py-4 font-black text-slate-900">{student.name}</td>
+                           <td className="px-4 py-4 text-center">
+                              <div className="inline-flex bg-slate-100 rounded-lg p-1 border border-slate-200">
+                                 <button 
+                                   onClick={() => handleStatusChange(student._id, 'Present')}
+                                   className={`tap-target px-3 py-1.5 text-xs font-bold rounded-md transition-all ${status === 'Present' ? 'bg-emerald-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'}`}
+                                 >
+                                   ✅ Present
+                                 </button>
+                                 <button 
+                                   onClick={() => handleStatusChange(student._id, 'Absent')}
+                                   className={`tap-target px-3 py-1.5 text-xs font-bold rounded-md transition-all ${status === 'Absent' ? 'bg-rose-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'}`}
+                                 >
+                                   ❌ Absent
+                                 </button>
+                                 <button 
+                                   onClick={() => handleStatusChange(student._id, 'Late')}
+                                   className={`tap-target px-3 py-1.5 text-xs font-bold rounded-md transition-all ${status === 'Late' ? 'bg-amber-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'}`}
+                                 >
+                                   🕐 Late
+                                 </button>
+                              </div>
+                           </td>
+                        </tr>
+                      )
+                   })}
+                   {students.length === 0 && (
+                     <tr>
+                        <td colSpan="4" className="p-8 text-center text-slate-500 font-bold">No students found for this class.</td>
+                     </tr>
+                   )}
+                </tbody>
+             </table>
+          </div>
+
+          {/* Submission Footer */}
+          {!isLocked && students.length > 0 && (
+             <div className="p-5 border-t border-slate-200 bg-slate-50 flex flex-col md:flex-row items-center gap-4 justify-between">
+                {isBackdated ? (
+                  <div className="w-full md:max-w-md">
+                     <label className="text-xs font-black uppercase text-slate-500 tracking-wider mb-1 block">Reason for backdated entry <span className="text-red-500">*</span></label>
+                     <input 
+                       type="text" 
+                       value={reason} 
+                       onChange={(e) => setReason(e.target.value)}
+                       placeholder="e.g., Portal was down, Forgot yesterday"
+                       className="input-field min-h-11 border-amber-300 focus:border-amber-500 focus:ring-amber-100"
+                     />
+                  </div>
+                ) : <div className="hidden md:block"></div>}
+                
+                <button 
+                  onClick={submitAttendance}
+                  disabled={submitting || (isBackdated && !reason.trim())}
+                  className="tap-target w-full md:w-auto px-6 py-3.5 rounded-xl bg-indigo-600 text-white font-black uppercase tracking-wide text-sm shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                  Submit Attendance for {new Date(selectedDate).toLocaleDateString('en-GB')}
+                </button>
+             </div>
+          )}
+
+        </div>
+      )}
+
+    </div>
   );
 };
 

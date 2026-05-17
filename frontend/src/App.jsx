@@ -56,6 +56,8 @@ const AppContent = () => {
               <Route path="teachers" element={<Navigate to="/admin/faculty" replace />} />
               <Route path="subjects" element={<Subjects />} />
               <Route path="attendance" element={<AttendanceReports />} />
+              <Route path="faculty-attendance" element={<FacultyAttendance />} />
+              <Route path="notifications" element={<AdminNotifications />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
@@ -71,6 +73,8 @@ const AppContent = () => {
               <Route path="subjects" element={<FacultySubjects />} />
               <Route path="mark-attendance" element={<MarkAttendance />} />
               <Route path="history" element={<AttendanceHistory />} />
+              <Route path="my-attendance" element={<FacultyMyAttendance />} />
+              <Route path="profile" element={<FacultyProfile />} />
               <Route path="*" element={<Navigate to="subjects" replace />} />
             </Routes>
           </AdminLayout>
@@ -84,6 +88,8 @@ const AppContent = () => {
           <AdminLayout>
             <Routes>
               <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="mark-attendance" element={<StudentMarkAttendance />} />
+              <Route path="notifications" element={<Notifications />} />
               <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
           </AdminLayout>

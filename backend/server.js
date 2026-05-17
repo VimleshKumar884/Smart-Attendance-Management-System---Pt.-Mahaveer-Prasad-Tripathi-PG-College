@@ -24,12 +24,18 @@ const userRoutes = require('./routes/userRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const assignmentRoutes = require('./routes/assignmentRoutes');
+const facultyLogRoutes = require('./routes/facultyLogRoutes');
+const backdatedLogRoutes = require('./routes/backdatedLogRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/assignments', assignmentRoutes);
+app.use('/api/faculty-logs', facultyLogRoutes);
+app.use('/api/backdated-logs', backdatedLogRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running...');
