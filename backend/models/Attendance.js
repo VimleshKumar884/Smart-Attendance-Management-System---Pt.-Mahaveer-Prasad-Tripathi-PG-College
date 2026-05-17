@@ -34,6 +34,10 @@ const AttendanceSchema = new mongoose.Schema({
     enum: ['Present', 'Absent', 'Late'],
     required: true
   },
+  isBackdated: {
+    type: Boolean,
+    default: false
+  },
   remarks: String,
   markedAt: {
     type: Date,
