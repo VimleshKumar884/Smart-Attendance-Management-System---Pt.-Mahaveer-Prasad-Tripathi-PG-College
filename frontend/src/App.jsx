@@ -15,6 +15,12 @@ import Settings from './pages/Settings';
 import FacultySubjects from './pages/FacultySubjects';
 import AttendanceHistory from './pages/AttendanceHistory';
 import Subjects from './pages/Subjects';
+import FacultyAttendance from './pages/FacultyAttendance';
+import AdminNotifications from './pages/AdminNotifications';
+import FacultyMyAttendance from './pages/FacultyMyAttendance';
+import FacultyProfile from './pages/FacultyProfile';
+import Notifications from './pages/Notifications';
+import StudentMarkAttendance from './pages/StudentMarkAttendance';
 
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
