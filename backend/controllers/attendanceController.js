@@ -223,6 +223,11 @@ exports.verifyOtp = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Update Attendance
+// @route   PUT /api/attendance/:id
+// @access  Private/Teacher/Admin
+exports.updateAttendance = async (req, res) => {
   try {
     const attendance = await Attendance.findById(req.params.id);
     if (!attendance) {
