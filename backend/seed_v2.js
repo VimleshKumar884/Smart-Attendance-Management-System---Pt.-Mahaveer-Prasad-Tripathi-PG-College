@@ -112,6 +112,7 @@ const seedData = async () => {
         password: 'password123',
         role: 'student',
         rollNumber: `CS${rollNumStr}`,
+        dob: '15/08/2004',
         department: 'Computer Science',
         semester: 3,
         section: 'CS-A',

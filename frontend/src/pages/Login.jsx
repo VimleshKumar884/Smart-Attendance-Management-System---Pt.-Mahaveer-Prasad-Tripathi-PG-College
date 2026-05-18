@@ -334,7 +334,7 @@ const Login = () => {
                         setPassword(event.target.value);
                         setFieldErrors((current) => ({ ...current, password: '' }));
                       }}
-                      placeholder={role === 'student' ? 'Password or YYYY-MM-DD' : 'Enter password'}
+                      placeholder={role === 'student' ? 'Password or DD/MM/YYYY' : 'Enter password'}
                       className={`input-field min-h-11 pl-10 ${fieldErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : ''}`}
                       autoComplete="current-password"
                     />
