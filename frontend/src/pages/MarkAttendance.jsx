@@ -5,7 +5,6 @@ import { CalendarCheck2, Loader2, Save, X, QrCode, Download } from 'lucide-react
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import { getFriendlyError, todayInputValue } from '../lib/helpers';
-import QRCode from 'react-qr-code';
 
 const MarkAttendance = () => {
   const [assignments, setAssignments] = useState([]);
@@ -312,8 +311,16 @@ const MarkAttendance = () => {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-6 lg:flex-row w-full">
-                    <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-200">
-                      {activeSession?._id && <QRCode value={String(activeSession._id)} size={180} />}
+                    <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-200 flex items-center justify-center min-h-[212px] min-w-[212px]">
+                      {activeSession?._id ? (
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${activeSession._id}`} 
+                          alt="Session QR Code" 
+                          className="w-[180px] h-[180px]"
+                        />
+                      ) : (
+                        <Loader2 className="animate-spin text-slate-300" size={40} />
+                      )}
                     </div>
                     <div className="flex-1 space-y-4">
                        <div className="space-y-1">
