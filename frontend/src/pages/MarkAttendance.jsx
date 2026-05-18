@@ -1,12 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { BookOpenCheck, CalendarCheck2, Loader2, Save, X, QrCode, Smartphone, Download, MapPin } from 'lucide-react';
+import { CalendarCheck2, Loader2, Save, X, QrCode, Download } from 'lucide-react';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import { getFriendlyError, todayInputValue } from '../lib/helpers';
 import QRCode from 'react-qr-code';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const MarkAttendance = () => {
   const [assignments, setAssignments] = useState([]);
@@ -15,7 +14,6 @@ const MarkAttendance = () => {
   
   // Selection State
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
-  const [dateMode, setDateMode] = useState('today'); // 'today' | 'previous'
   const [selectedDate, setSelectedDate] = useState(todayInputValue());
   
   // Student List State
@@ -26,15 +24,12 @@ const MarkAttendance = () => {
   
   // Attendance State
   const [attendanceState, setAttendanceState] = useState({});
-  const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [isLocked, setIsLocked] = useState(false); 
 
   // Session/QR State
   const [activeSession, setActiveSession] = useState(null);
   const [sessionTimer, setSessionTimer] = useState(0);
   const timerRef = useRef(null);
-  const [location, setLocation] = useState(null);
 
   const { showToast } = useToast();
 
@@ -52,16 +47,6 @@ const MarkAttendance = () => {
       }
     };
     fetchAssignments();
-    
-    // Get initial location
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        });
-      }, (err) => console.error("Location error", err));
-    }
   }, []);
 
   const selectedAssignment = useMemo(() => {
@@ -121,17 +106,11 @@ const MarkAttendance = () => {
   };
 
   const handleGenerateSession = async () => {
-    if (!location) {
-      showToast('Location access is required to generate QR code.', 'error');
-      return;
-    }
     try {
       const res = await axios.post('/sessions/create', {
         subjectId: selectedSubjectId,
         section: selectedAssignment.section,
-        durationMinutes: 10,
-        latitude: location.latitude,
-        longitude: location.longitude
+        durationMinutes: 10
       });
       const sessionData = res.data.data;
       setActiveSession(sessionData);
@@ -263,15 +242,10 @@ const MarkAttendance = () => {
                 {!activeSession ? (
                   <div className="flex-1 space-y-2">
                     <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">Generate Session QR</h3>
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Generate a time-bound QR code for students to scan within 50 meters of your current location.</p>
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
-                       <MapPin size={14} className="text-emerald-500"/>
-                       {location ? `Location locked: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}` : 'Waiting for GPS...'}
-                    </div>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Generate a time-bound QR code for students to scan in class.</p>
                     <button 
                       onClick={handleGenerateSession} 
-                      disabled={!location}
-                      className="btn-primary mt-4 flex items-center gap-2 disabled:opacity-50"
+                      className="btn-primary mt-4 flex items-center gap-2"
                     >
                       <QrCode size={18}/> Start 10 Min Session
                     </button>

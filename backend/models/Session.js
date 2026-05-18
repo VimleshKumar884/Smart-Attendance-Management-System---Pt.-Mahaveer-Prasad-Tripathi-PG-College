@@ -27,16 +27,6 @@ const SessionSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-  location: {
-    latitude: {
-      type: Number,
-      required: true
-    },
-    longitude: {
-      type: Number,
-      required: true
-    }
   }
 }, { timestamps: true });
 

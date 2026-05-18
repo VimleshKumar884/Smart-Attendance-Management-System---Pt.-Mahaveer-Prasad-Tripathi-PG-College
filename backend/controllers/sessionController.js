@@ -4,28 +4,12 @@ const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const { createObjectCsvStringifier } = require('csv-writer');
 
-// Helper to calculate distance between two lat/lng in meters (Haversine formula)
-const getDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371e3; // metres
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
-
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-  return R * c; // in meters
-};
-
 exports.createSession = async (req, res) => {
   try {
-    const { subjectId, section, durationMinutes, latitude, longitude } = req.body;
+    const { subjectId, section, durationMinutes } = req.body;
     
-    if (!subjectId || !section || !durationMinutes || latitude == null || longitude == null) {
-      return res.status(400).json({ message: 'Missing required fields: subjectId, section, durationMinutes, latitude, longitude' });
+    if (!subjectId || !section || !durationMinutes) {
+      return res.status(400).json({ message: 'Missing required fields: subjectId, section, durationMinutes' });
     }
 
     const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
@@ -34,8 +18,7 @@ exports.createSession = async (req, res) => {
       teacherId: req.user.id,
       subjectId,
       section,
-      expiresAt,
-      location: { latitude, longitude }
+      expiresAt
     });
 
     await AuditLog.create({
@@ -52,11 +35,11 @@ exports.createSession = async (req, res) => {
 
 exports.scanQr = async (req, res) => {
   try {
-    const { sessionId, latitude, longitude } = req.body;
+    const { sessionId } = req.body;
     const studentId = req.user.id;
 
-    if (!sessionId || latitude == null || longitude == null) {
-      return res.status(400).json({ message: 'Missing sessionId or location coordinates' });
+    if (!sessionId) {
+      return res.status(400).json({ message: 'Missing sessionId' });
     }
 
     const session = await Session.findById(sessionId);
@@ -68,12 +51,6 @@ exports.scanQr = async (req, res) => {
       session.isActive = false;
       await session.save();
       return res.status(400).json({ message: 'Session has expired' });
-    }
-
-    // Verify location
-    const distance = getDistance(latitude, longitude, session.location.latitude, session.location.longitude);
-    if (distance > 50) { // 50 meters radius
-      return res.status(400).json({ message: 'You are too far from the classroom to mark attendance' });
     }
 
     // Proxy prevention is handled by MongoDB unique index on studentId + sessionId

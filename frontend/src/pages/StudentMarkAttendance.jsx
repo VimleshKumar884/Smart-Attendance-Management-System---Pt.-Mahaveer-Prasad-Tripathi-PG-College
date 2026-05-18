@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Smartphone, Loader2, CheckCircle2, Scan, AlertCircle, MapPin } from 'lucide-react';
+import { Smartphone, Loader2, CheckCircle2, Scan, AlertCircle } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { getFriendlyError } from '../lib/helpers';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -10,24 +10,11 @@ const StudentMarkAttendance = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [location, setLocation] = useState(null);
   const [scanning, setScanning] = useState(false);
   const scannerRef = useRef(null);
   const { showToast } = useToast();
 
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-        (err) => {
-          console.error(err);
-          setError('Location access is required to mark attendance.');
-        }
-      );
-    } else {
-      setError('Geolocation is not supported by your browser.');
-    }
-
     return () => {
       if (scannerRef.current) {
         scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
@@ -36,10 +23,6 @@ const StudentMarkAttendance = () => {
   }, []);
 
   const startScanner = () => {
-    if (!location) {
-      showToast('Waiting for GPS location...', 'error');
-      return;
-    }
     setScanning(true);
     setSuccess(false);
     setError('');
@@ -73,9 +56,7 @@ const StudentMarkAttendance = () => {
     setLoading(true);
     try {
       await axios.post('/sessions/scan', {
-        sessionId,
-        latitude: location.latitude,
-        longitude: location.longitude
+        sessionId
       });
       setSuccess(true);
       showToast('✅ Attendance marked successfully!', 'success');
@@ -146,12 +127,7 @@ const StudentMarkAttendance = () => {
                     <Smartphone size={40} />
                   </div>
                   <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100">Ready to Scan?</h2>
-                  <p className="text-sm font-medium text-slate-500 mt-2 max-w-sm">Ensure you are in the classroom and have granted location permissions.</p>
-                  
-                  <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-[11px] font-black uppercase text-slate-500 dark:bg-slate-800">
-                     <MapPin size={14} className={location ? "text-emerald-500" : "text-rose-500"}/>
-                     {location ? "Location Verified" : "Awaiting Location..."}
-                  </div>
+                  <p className="text-sm font-medium text-slate-500 mt-2 max-w-sm">Ensure you are in the classroom when scanning the session QR code.</p>
                 </>
              ) : (
                 <div className="w-full space-y-4">
@@ -166,7 +142,7 @@ const StudentMarkAttendance = () => {
             <div className="p-8 flex flex-col items-center">
                <button 
                  onClick={startScanner}
-                 disabled={loading || !location}
+                 disabled={loading}
                  className="tap-target w-full sm:w-auto min-w-[240px] px-8 py-5 rounded-2xl bg-primary text-white font-black uppercase tracking-widest shadow-xl hover:bg-primary-dark transition-all disabled:opacity-50 flex items-center justify-center gap-3"
                >
                  {loading ? <Loader2 className="animate-spin" size={24} /> : <Scan size={24} />}
@@ -180,7 +156,7 @@ const StudentMarkAttendance = () => {
       <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex gap-3 dark:bg-blue-900/10 dark:border-blue-900/30">
          <AlertCircle size={20} className="text-primary shrink-0"/>
          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-            <strong>Proxy Protection:</strong> Our system verifies your physical presence in the room. Attempting to scan from outside or sharing sessions will result in an audit flag.
+            <strong>Proxy Protection:</strong> Attempting to share session QR codes with absent students will result in an audit flag and potential disciplinary action.
          </p>
       </div>
     </div>
