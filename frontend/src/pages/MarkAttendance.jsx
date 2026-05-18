@@ -24,6 +24,8 @@ const MarkAttendance = () => {
   
   // Attendance State
   const [attendanceState, setAttendanceState] = useState({});
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [isLocked, setIsLocked] = useState(false); 
 
   // Session/QR State
@@ -102,6 +104,64 @@ const MarkAttendance = () => {
       setStudentsError(getFriendlyError(err, 'Failed to fetch students.'));
     } finally {
       setLoadingStudents(false);
+    }
+  };
+
+  const handleStatusChange = (studentId, status) => {
+    if (isLocked) return;
+    setAttendanceState(prev => ({ ...prev, [studentId]: status }));
+  };
+
+  const markAll = (status) => {
+    if (isLocked) return;
+    const newState = {};
+    students.forEach(student => {
+      newState[student._id] = status;
+    });
+    setAttendanceState(newState);
+  };
+
+  const submitAttendance = async () => {
+    if (isBackdated && !reason.trim()) {
+      showToast('Reason is required for backdated attendance', 'error');
+      return;
+    }
+    
+    const countPresent = Object.values(attendanceState).filter(s => s === 'Present' || s === 'Late').length;
+    const total = students.length;
+    const confirmMessage = `Submitting for ${total} students (${countPresent} present/late) for ${selectedAssignment.subjectId.subjectName} on ${new Date(selectedDate).toLocaleDateString('en-GB')}. Cannot edit later. Confirm?`;
+    
+    if (!window.confirm(confirmMessage)) return;
+
+    setSubmitting(true);
+    try {
+      const records = Object.entries(attendanceState).map(([studentId, status]) => ({
+        studentId,
+        status
+      }));
+
+      const payload = {
+        subjectId: selectedSubjectId,
+        section: selectedAssignment.section,
+        lecture_no: 1,
+        date: selectedDate,
+        records,
+        isBackdated,
+        reason: isBackdated ? reason.trim() : undefined
+      };
+
+      await axios.post('/attendance', payload);
+      
+      showToast(`✅ Attendance submitted for ${total} students`, 'success');
+      setIsLocked(true);
+      if (activeSession) {
+         clearInterval(timerRef.current);
+         setActiveSession(null);
+      }
+    } catch (err) {
+      showToast(getFriendlyError(err, 'Failed to submit attendance'), 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -236,7 +296,7 @@ const MarkAttendance = () => {
 
       {studentsLoaded && (
         <div className="space-y-6">
-          {!isLocked && !isBackdated && (
+          {!isBackdated && (
             <div className="rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-6 dark:bg-primary/10">
               <div className="flex flex-col items-center gap-6 text-center lg:flex-row lg:text-left">
                 {!activeSession ? (
@@ -290,11 +350,20 @@ const MarkAttendance = () => {
           )}
 
           <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden dark:bg-slate-900 dark:border-slate-800">
-            <div className="border-b border-slate-200 bg-slate-50 p-4 dark:bg-slate-800 dark:border-slate-800 flex items-center justify-between">
-               <h3 className="font-bold text-slate-700 dark:text-slate-300">Students List ({students.length})</h3>
-               <div className="flex gap-4 text-xs font-black uppercase">
+            <div className="border-b border-slate-200 bg-slate-50 p-4 dark:bg-slate-800 dark:border-slate-800 flex flex-col md:flex-row gap-4 md:items-center justify-between">
+               <div className="flex flex-wrap gap-2 items-center">
+                  {!isLocked && (
+                    <>
+                      <button onClick={() => markAll('Present')} className="tap-target px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-sm font-bold border border-emerald-200 hover:bg-emerald-200">✅ Mark All Present</button>
+                      <button onClick={() => markAll('Absent')} className="tap-target px-3 py-1.5 rounded-lg bg-rose-100 text-rose-800 text-sm font-bold border border-rose-200 hover:bg-rose-200">❌ Mark All Absent</button>
+                      <button onClick={() => markAll('Absent')} className="tap-target px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-300">🔄 Reset</button>
+                    </>
+                  )}
+               </div>
+               <div className="flex gap-4 items-center bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm text-sm font-bold dark:bg-slate-900 dark:border-slate-700">
                  <span className="text-emerald-600">Present: {counts.present}</span>
                  <span className="text-rose-600">Absent: {counts.absent}</span>
+                 <span className="text-amber-600">Late: {counts.late}</span>
                </div>
             </div>
             
@@ -309,23 +378,77 @@ const MarkAttendance = () => {
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                     {students.map((student, idx) => (
-                        <tr key={student._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                           <td className="px-4 py-4 text-center font-bold text-slate-400">{idx + 1}</td>
-                           <td className="px-4 py-4 font-bold text-slate-700 dark:text-slate-300">{student.rollNumber}</td>
-                           <td className="px-4 py-4 font-black text-slate-900 dark:text-slate-100">{student.name}</td>
-                           <td className="px-4 py-4 text-center">
-                              <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                 attendanceState[student._id] === 'Present' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                              }`}>
-                                 {attendanceState[student._id]}
-                              </span>
-                           </td>
-                        </tr>
-                     ))}
+                     {students.map((student, idx) => {
+                        const status = attendanceState[student._id];
+                        return (
+                          <tr key={student._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                             <td className="px-4 py-4 text-center font-bold text-slate-400">{idx + 1}</td>
+                             <td className="px-4 py-4 font-bold text-slate-700 dark:text-slate-300">{student.rollNumber}</td>
+                             <td className="px-4 py-4 font-black text-slate-900 dark:text-slate-100">{student.name}</td>
+                             <td className="px-4 py-4 text-center">
+                                {!isLocked ? (
+                                  <div className="inline-flex bg-slate-100 rounded-lg p-1 border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                                     <button 
+                                       onClick={() => handleStatusChange(student._id, 'Present')}
+                                       className={`tap-target px-3 py-1.5 text-xs font-bold rounded-md transition-all ${status === 'Present' ? 'bg-emerald-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200'}`}
+                                     >
+                                       Present
+                                     </button>
+                                     <button 
+                                       onClick={() => handleStatusChange(student._id, 'Absent')}
+                                       className={`tap-target px-3 py-1.5 text-xs font-bold rounded-md transition-all ${status === 'Absent' ? 'bg-rose-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200'}`}
+                                     >
+                                       Absent
+                                     </button>
+                                     <button 
+                                       onClick={() => handleStatusChange(student._id, 'Late')}
+                                       className={`tap-target px-3 py-1.5 text-xs font-bold rounded-md transition-all ${status === 'Late' ? 'bg-amber-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200'}`}
+                                     >
+                                       Late
+                                     </button>
+                                  </div>
+                                ) : (
+                                  <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                     status === 'Present' ? 'bg-emerald-100 text-emerald-700' : 
+                                     status === 'Late' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
+                                  }`}>
+                                     {status}
+                                  </span>
+                                )}
+                             </td>
+                          </tr>
+                        );
+                     })}
                   </tbody>
                </table>
             </div>
+
+            {/* Submission Footer */}
+            {!isLocked && students.length > 0 && (
+               <div className="p-5 border-t border-slate-200 bg-slate-50 flex flex-col md:flex-row items-center gap-4 justify-between dark:bg-slate-800 dark:border-slate-700">
+                  {isBackdated ? (
+                    <div className="w-full md:max-w-md">
+                       <label className="text-xs font-black uppercase text-slate-500 tracking-wider mb-1 block dark:text-slate-400">Reason for backdated entry <span className="text-red-500">*</span></label>
+                       <input 
+                         type="text" 
+                         value={reason} 
+                         onChange={(e) => setReason(e.target.value)}
+                         placeholder="e.g., Portal was down, Forgot yesterday"
+                         className="input-field min-h-11 border-amber-300 focus:border-amber-500 focus:ring-amber-100 dark:bg-slate-900"
+                       />
+                    </div>
+                  ) : <div className="hidden md:block"></div>}
+                  
+                  <button 
+                    onClick={submitAttendance}
+                    disabled={submitting || (isBackdated && !reason.trim())}
+                    className="tap-target w-full md:w-auto px-6 py-3.5 rounded-xl bg-indigo-600 text-white font-black uppercase tracking-wide text-sm shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                    Submit Attendance for {new Date(selectedDate).toLocaleDateString('en-GB')}
+                  </button>
+               </div>
+            )}
           </div>
         </div>
       )}

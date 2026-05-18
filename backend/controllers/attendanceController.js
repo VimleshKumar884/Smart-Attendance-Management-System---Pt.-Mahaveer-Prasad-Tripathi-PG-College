@@ -9,10 +9,10 @@ const crypto = require('crypto');
 // @access  Private/Teacher/Admin
 exports.markAttendance = async (req, res) => {
   try {
-    const { subjectId, section, lecture_no, records, date, isBackdated, reason } = req.body;
+    const { subjectId, section, records, date, isBackdated, reason } = req.body;
     
-    if (!subjectId || !section || !lecture_no || !records || records.length === 0) {
-      return res.status(400).json({ message: 'Please provide subject, section, lecture number and attendance records' });
+    if (!subjectId || !section || !records || records.length === 0) {
+      return res.status(400).json({ message: 'Please provide subject, section, and attendance records' });
     }
 
     if (isBackdated && !reason) {
@@ -23,9 +23,10 @@ exports.markAttendance = async (req, res) => {
     attendanceDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
     // Check for duplicate attendance submission for the whole class
-    const existingSubmission = await Attendance.findOne({ subjectId, section, date: attendanceDate, lecture_no });
+    // For manual entry without sessionId, check if records exist for subject and date
+    const existingSubmission = await Attendance.findOne({ subjectId, section, date: attendanceDate, sessionId: null });
     if (existingSubmission) {
-      return res.status(400).json({ message: 'Attendance already submitted for this lecture' });
+      return res.status(400).json({ message: 'Attendance already submitted manually for this date' });
     }
 
     const attendanceDocs = records.map(record => ({
@@ -33,7 +34,6 @@ exports.markAttendance = async (req, res) => {
       teacherId: req.user.id,
       subjectId,
       section,
-      lecture_no,
       date: attendanceDate,
       status: record.status,
       isBackdated: isBackdated || false,
