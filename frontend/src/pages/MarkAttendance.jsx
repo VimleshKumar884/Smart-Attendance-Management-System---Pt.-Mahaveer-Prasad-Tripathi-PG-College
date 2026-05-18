@@ -313,15 +313,15 @@ const MarkAttendance = () => {
                 ) : (
                   <div className="flex flex-col items-center gap-6 lg:flex-row w-full">
                     <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-200">
-                      <QRCode value={activeSession._id} size={180} />
+                      {activeSession?._id && <QRCode value={String(activeSession._id)} size={180} />}
                     </div>
                     <div className="flex-1 space-y-4">
                        <div className="space-y-1">
                           <p className="text-xs font-black uppercase tracking-widest text-primary">Session Active</p>
                           <h4 className="text-3xl font-black text-slate-900 dark:text-slate-100">
-                             {Math.floor(sessionTimer / 60).toString().padStart(2, '0')}:{(sessionTimer % 60).toString().padStart(2, '0')}
+                             {Math.floor((sessionTimer || 0) / 60).toString().padStart(2, '0')}:{((sessionTimer || 0) % 60).toString().padStart(2, '0')}
                           </h4>
-                          <p className="text-sm font-bold text-slate-500">Scanning enabled for {selectedAssignment.section}</p>
+                          <p className="text-sm font-bold text-slate-500">Scanning enabled for {selectedAssignment?.section}</p>
                        </div>
                        
                        <div className="flex gap-3">
